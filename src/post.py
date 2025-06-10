@@ -34,7 +34,15 @@ def clean_fields(fields, field_meta):
 
         try:
             if data_type == "date":
-                value = datetime.strptime(value.replace("/", "."), "%d.%m.%Y").strftime("%Y-%m-%d")
+                # Try multiple date formats
+                for date_format in ["%d.%m.%Y", "%d/%m/%Y", "%d %b %y"]:
+                    try:
+                        value = datetime.strptime(value, date_format).strftime("%Y-%m-%d")
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    raise ValueError(f"Unsupported date format for '{key}': {value}")
             elif data_type == "monetary":
                 value = re.sub(r'[^\d,.-]', '', value).replace(",", ".")
                 value = str(round(float(value.replace(",", "").replace(" ", "")), 2))

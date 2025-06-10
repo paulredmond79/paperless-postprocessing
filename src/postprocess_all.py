@@ -44,7 +44,7 @@ def fetch_all_documents():
 
 def main():
     logging.info(
-        "Starting post-processing for all documents without the 'gpt-correspondant' tag."
+        "Starting post-processing for all documents without the 'gpt-correspondent' tag."
     )
 
     # Fetch all documents
@@ -52,11 +52,11 @@ def main():
 
     # Fetch existing tags
     tags = fetch_tags()
-    gpt_tag = tags.get("gpt-correspondant")
+    gpt_tag = tags.get("gpt-correspondent")
 
     if not gpt_tag:
         logging.error(
-            "The 'gpt-correspondant' tag does not exist. Please create it first."
+            "The 'gpt-correspondent' tag does not exist. Please create it first."
         )
         sys.exit(1)
 
@@ -76,10 +76,10 @@ def main():
             elif isinstance(tag, int):
                 document_tag_ids.add(tag)
 
-        # Skip documents that already have the 'gpt-correspondant' tag
+        # Skip documents that already have the 'gpt-correspondent' tag
         if gpt_tag_id in document_tag_ids:
             logging.info(
-                f"Skipping document ID {document_id} as it already has the 'gpt-correspondant' tag."
+                f"Skipping document ID {document_id} as it already has the 'gpt-correspondent' tag."
             )
             continue
 

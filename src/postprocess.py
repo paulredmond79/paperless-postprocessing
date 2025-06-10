@@ -275,22 +275,22 @@ def main(doc_id):
             sys.exit(1)
     elif ai_response["status"] == "no_match":
         logging.warning(
-            "AI could not determine a correspondent. Adding 'gpt-correspondant-unable-to-determine' tag."
+            "AI could not determine a correspondent. Adding 'gpt-correspondent-unable-to-determine' tag."
         )
 
         # Fetch existing tags
         tags = fetch_tags()
-        unable_to_determine_tag_name = "gpt-correspondant-unable-to-determine"
+        unable_to_determine_tag_name = "gpt-correspondent-unable-to-determine"
         unable_to_determine_tag = tags.get(unable_to_determine_tag_name.lower())
 
-        # Create the 'gpt-correspondant-unable-to-determine' tag if it does not exist
+        # Create the 'gpt-correspondent-unable-to-determine' tag if it does not exist
         if not unable_to_determine_tag:
             logging.info(
                 f"No matching tag found for '{unable_to_determine_tag_name}'. Creating a new one."
             )
             unable_to_determine_tag = create_tag(unable_to_determine_tag_name)
 
-        # Add the 'gpt-correspondant-unable-to-determine' tag to the document
+        # Add the 'gpt-correspondent-unable-to-determine' tag to the document
         if unable_to_determine_tag["id"] not in current_tags:
             logging.info(
                 f"Adding tag '{unable_to_determine_tag['name']}' (ID: {unable_to_determine_tag['id']}) to document ID {doc_id}."
@@ -323,7 +323,7 @@ def main(doc_id):
         # Fetch tags
         logging.info("Fetching existing tags.")
         tags = fetch_tags()
-        tag_name = "gpt-correspondant"
+        tag_name = "gpt-correspondent"
         tag = tags.get(tag_name.lower())
 
         # Create new tag if not found
@@ -349,22 +349,22 @@ def main(doc_id):
         == "the ocr text does not provide a clear correspondent name."
     ):
         logging.warning(
-            "OpenAI could not determine a correspondent. Adding 'gpt-correspondant-unable-to-determine' tag."
+            "OpenAI could not determine a correspondent. Adding 'gpt-correspondent-unable-to-determine' tag."
         )
 
         # Fetch existing tags
         tags = fetch_tags()
-        unable_to_determine_tag_name = "gpt-correspondant-unable-to-determine"
+        unable_to_determine_tag_name = "gpt-correspondent-unable-to-determine"
         unable_to_determine_tag = tags.get(unable_to_determine_tag_name.lower())
 
-        # Create the 'gpt-correspondant-unable-to-determine' tag if it does not exist
+        # Create the 'gpt-correspondent-unable-to-determine' tag if it does not exist
         if not unable_to_determine_tag:
             logging.info(
                 f"No matching tag found for '{unable_to_determine_tag_name}'. Creating a new one."
             )
             unable_to_determine_tag = create_tag(unable_to_determine_tag_name)
 
-        # Add the 'gpt-correspondant-unable-to-determine' tag to the document
+        # Add the 'gpt-correspondent-unable-to-determine' tag to the document
         if unable_to_determine_tag["id"] not in current_tags:
             logging.info(
                 f"Adding tag '{unable_to_determine_tag['name']}' (ID: {unable_to_determine_tag['id']}) to document ID {doc_id}."

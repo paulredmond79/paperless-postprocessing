@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
+import logging
 import os
 import sys
-import logging
+
 import requests
-from postprocess import main as process_document, fetch_tags
+
+from postprocess import fetch_tags
+from postprocess import main as process_document
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 # Global variables for API configuration
 paperless_url = os.getenv("PAPERLESS_URL", "http://localhost:8000")
@@ -14,8 +19,9 @@ paperless_token = os.getenv("PAPERLESS_API_TOKEN")
 
 headers = {
     "Authorization": f"Token {paperless_token}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
+
 
 def fetch_all_documents():
     """
@@ -35,8 +41,11 @@ def fetch_all_documents():
     logging.info(f"Fetched {len(documents)} documents.")
     return documents
 
+
 def main():
-    logging.info("Starting post-processing for all documents without the 'gpt-correspondant' tag.")
+    logging.info(
+        "Starting post-processing for all documents without the 'gpt-correspondant' tag."
+    )
 
     # Fetch all documents
     documents = fetch_all_documents()
@@ -46,7 +55,9 @@ def main():
     gpt_tag = tags.get("gpt-correspondant")
 
     if not gpt_tag:
-        logging.error("The 'gpt-correspondant' tag does not exist. Please create it first.")
+        logging.error(
+            "The 'gpt-correspondant' tag does not exist. Please create it first."
+        )
         sys.exit(1)
 
     gpt_tag_id = gpt_tag["id"]
@@ -77,6 +88,7 @@ def main():
         process_document(document_id)
 
     logging.info("Post-processing completed for all documents.")
+
 
 if __name__ == "__main__":
     main()

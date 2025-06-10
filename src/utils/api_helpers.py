@@ -1,51 +1,69 @@
-import os
-import requests
 import logging
+import os
 import re
+
+import requests
+
 
 def get_correspondents(api_url, headers):
     try:
         response = requests.get(f"{api_url}/api/correspondents/", headers=headers)
         response.raise_for_status()
-        return {correspondent['name']: correspondent['id'] for correspondent in response.json().get('results', [])}
+        return {
+            correspondent["name"]: correspondent["id"]
+            for correspondent in response.json().get("results", [])
+        }
     except Exception as e:
         print(f"❌ Failed to fetch correspondents: {e}")
         return {}
 
+
 def create_correspondent(api_url, headers, name):
     try:
-        response = requests.post(f"{api_url}/api/correspondents/", headers=headers, json={"name": name})
+        response = requests.post(
+            f"{api_url}/api/correspondents/", headers=headers, json={"name": name}
+        )
         response.raise_for_status()
-        return response.json().get('id')
+        return response.json().get("id")
     except Exception as e:
         print(f"❌ Failed to create correspondent '{name}': {e}")
         return None
+
 
 def get_tags(api_url, headers):
     try:
         response = requests.get(f"{api_url}/api/tags/", headers=headers)
         response.raise_for_status()
-        return {tag['name']: tag['id'] for tag in response.json().get('results', [])}
+        return {tag["name"]: tag["id"] for tag in response.json().get("results", [])}
     except Exception as e:
         print(f"❌ Failed to fetch tags: {e}")
         return {}
 
+
 def create_tag(api_url, headers, name):
     try:
-        response = requests.post(f"{api_url}/api/tags/", headers=headers, json={"name": name})
+        response = requests.post(
+            f"{api_url}/api/tags/", headers=headers, json={"name": name}
+        )
         response.raise_for_status()
-        return response.json().get('id')
+        return response.json().get("id")
     except Exception as e:
         print(f"❌ Failed to create tag '{name}': {e}")
         return None
 
+
 def add_tag_to_document(api_url, headers, document_id, tag_id):
     try:
-        response = requests.post(f"{api_url}/api/documents/{document_id}/tags/", headers=headers, json={"tag": tag_id})
+        response = requests.post(
+            f"{api_url}/api/documents/{document_id}/tags/",
+            headers=headers,
+            json={"tag": tag_id},
+        )
         response.raise_for_status()
         print(f"✅ Successfully added tag to document {document_id}.")
     except Exception as e:
         print(f"❌ Failed to add tag to document {document_id}: {e}")
+
 
 def fetch_document_details(api_url, headers, doc_id):
     """
@@ -63,6 +81,7 @@ def fetch_document_details(api_url, headers, doc_id):
         logging.error(f"Failed to fetch document details for ID {doc_id}: {e}")
         raise
 
+
 def update_document_metadata(api_url, headers, doc_id, payload):
     """
     Updates the document metadata, including title and custom fields.
@@ -77,6 +96,7 @@ def update_document_metadata(api_url, headers, doc_id, payload):
         logging.error(f"Failed to update document metadata for ID {doc_id}: {e}")
         raise
 
+
 def fetch_custom_fields(api_url, headers):
     """
     Fetches the custom fields metadata from the Paperless-ngx API.
@@ -89,7 +109,7 @@ def fetch_custom_fields(api_url, headers):
         return {
             to_snake_case(item["name"]): {
                 "id": item["id"],
-                "data_type": item["data_type"]
+                "data_type": item["data_type"],
             }
             for item in data
         }
@@ -97,8 +117,9 @@ def fetch_custom_fields(api_url, headers):
         logging.error(f"Failed to fetch custom fields metadata: {e}")
         raise
 
+
 def to_snake_case(text):
     """
     Converts a given text to snake_case.
     """
-    return re.sub(r'[^a-z0-9]+', '_', text.lower()).strip('_')
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")

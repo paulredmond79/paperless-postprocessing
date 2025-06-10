@@ -1,7 +1,9 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import os
+
 import post
 
 
@@ -17,17 +19,14 @@ def test_clean_fields_date_and_money():
     fields = {
         "date_field": "01.02.2023",
         "money_field": "1234,50",
-        "ignored_field": "value"
+        "ignored_field": "value",
     }
     field_meta = {
         "date_field": {"data_type": "date"},
-        "money_field": {"data_type": "monetary"}
+        "money_field": {"data_type": "monetary"},
     }
     cleaned = post.clean_fields(fields, field_meta)
-    assert cleaned == {
-        "date_field": "2023-02-01",
-        "money_field": "1234.5"
-    }
+    assert cleaned == {"date_field": "2023-02-01", "money_field": "1234.5"}
 
 
 def test_clean_fields_monetary_with_spaces():
@@ -68,7 +67,7 @@ class DummyClient:
             @staticmethod
             def create(*args, **kwargs):
                 return DummyChoices(
-                    "Random text {\"title\": \"Test Document\", \"fields\": {\"amount\": \"12.34\"}} end"
+                    'Random text {"title": "Test Document", "fields": {"amount": "12.34"}} end'
                 )
 
 

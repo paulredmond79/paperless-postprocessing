@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-import os
-import sys
 import json
-import re
 import logging
+import os
+import re
+import sys
 from datetime import datetime
+
 from openai import OpenAI
-from utils.api_helpers import (
-    update_document_metadata,
-    fetch_custom_fields,
-    get_correspondents,
-    fetch_document_details
-)
+
+from utils.api_helpers import (fetch_custom_fields, fetch_document_details,
+                               get_correspondents, update_document_metadata)
 
 logging.basicConfig(level=logging.INFO)
 
+
 def to_snake_case(text):
-    return re.sub(r'[^a-z0-9]+', '_', text.lower()).strip('_')
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
 
 def clean_fields(fields, field_meta):
     """Cleans and normalizes field values based on their metadata."""
@@ -37,14 +37,16 @@ def clean_fields(fields, field_meta):
                 # Try multiple date formats
                 for date_format in ["%d.%m.%Y", "%d/%m/%Y", "%d %b %y"]:
                     try:
-                        value = datetime.strptime(value, date_format).strftime("%Y-%m-%d")
+                        value = datetime.strptime(value, date_format).strftime(
+                            "%Y-%m-%d"
+                        )
                         break
                     except ValueError:
                         continue
                 else:
                     raise ValueError(f"Unsupported date format for '{key}': {value}")
             elif data_type == "monetary":
-                value = re.sub(r'[^\d,.-]', '', value).replace(",", ".")
+                value = re.sub(r"[^\d,.-]", "", value).replace(",", ".")
                 value = str(round(float(value.replace(",", "").replace(" ", "")), 2))
         except ValueError:
             logging.warning(f"Invalid format for '{key}': {value}, skipping.")
@@ -53,6 +55,7 @@ def clean_fields(fields, field_meta):
         cleaned[key] = value
 
     return cleaned
+
 
 def generate_metadata_with_openai(content, field_keys):
     """Generates metadata using OpenAI based on OCR content."""
@@ -85,21 +88,25 @@ def generate_metadata_with_openai(content, field_keys):
         ai_response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You're a document assistant for metadata extraction and title generation."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "system",
+                    "content": "You're a document assistant for metadata extraction and title generation.",
+                },
+                {"role": "user", "content": prompt},
             ],
-            temperature=0.2
+            temperature=0.2,
         )
         raw_output = ai_response.choices[0].message.content
         logging.info(f"Raw OpenAI output: {raw_output[:300]}")
 
-        json_text_match = re.search(r'\{.*\}', raw_output, re.DOTALL)
+        json_text_match = re.search(r"\{.*\}", raw_output, re.DOTALL)
         if not json_text_match:
             raise ValueError("Could not find valid JSON in OpenAI output.")
         return json.loads(json_text_match.group(0))
     except Exception as e:
         logging.error(f"OpenAI API error: {e}")
         sys.exit(1)
+
 
 def main(doc_id):
     """Main function to process a document by its ID."""
@@ -108,7 +115,7 @@ def main(doc_id):
     api_url = os.getenv("PAPERLESS_URL", "http://localhost:8000")
     headers = {
         "Authorization": f"Token {os.getenv('PAPERLESS_API_TOKEN')}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     document_details = fetch_document_details(api_url, headers, doc_id)
@@ -135,13 +142,13 @@ def main(doc_id):
         if key in field_map
     ]
 
-    payload = {
-        "title": generated_title,
-        "custom_fields": custom_fields_payload
-    }
+    payload = {"title": generated_title, "custom_fields": custom_fields_payload}
 
     update_document_metadata(api_url, headers, doc_id, payload)
-    logging.info(f"Successfully updated document {doc_id} with title and custom fields.")
+    logging.info(
+        f"Successfully updated document {doc_id} with title and custom fields."
+    )
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

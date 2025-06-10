@@ -30,6 +30,13 @@ def test_clean_fields_date_and_money():
     }
 
 
+def test_clean_fields_monetary_with_spaces():
+    fields = {"money_field": "1 234,50"}
+    field_meta = {"money_field": {"data_type": "monetary"}}
+    cleaned = post.clean_fields(fields, field_meta)
+    assert cleaned == {"money_field": "1234.5"}
+
+
 def test_clean_fields_invalid_date():
     fields = {"date_field": "32/13/2023"}
     field_meta = {"date_field": {"data_type": "date"}}

@@ -15,7 +15,7 @@ def test_skip_documents_with_tag_dicts(monkeypatch):
 
     monkeypatch.setattr(postprocess_all, "fetch_all_documents", lambda: docs)
     monkeypatch.setattr(
-        postprocess_all, "fetch_tags", lambda: {"gpt-correspondant": {"id": 5}}
+        postprocess_all, "fetch_tags", lambda: {"gpt-correspondent": {"id": 5}}
     )
 
     processed = []

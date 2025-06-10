@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-import os
 import logging
-import requests
+import os
 from collections import defaultdict
 
+import requests
+
 # Configure logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 # Global variables for API configuration
 paperless_url = os.getenv("PAPERLESS_URL", "http://localhost:8000")
@@ -13,8 +16,9 @@ paperless_token = os.getenv("PAPERLESS_API_TOKEN")
 
 headers = {
     "Authorization": f"Token {paperless_token}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
+
 
 def fetch_all_correspondents():
     """
@@ -34,6 +38,7 @@ def fetch_all_correspondents():
     logging.info(f"Fetched {len(correspondents)} correspondents.")
     return correspondents
 
+
 def fetch_documents_by_correspondent(correspondent_id):
     """
     Fetches all documents associated with a given correspondent ID.
@@ -49,30 +54,39 @@ def fetch_documents_by_correspondent(correspondent_id):
         documents.extend(data.get("results", []))
         next_url = data.get("next")
 
-    logging.info(f"Fetched {len(documents)} documents for correspondent ID {correspondent_id}.")
+    logging.info(
+        f"Fetched {len(documents)} documents for correspondent ID {correspondent_id}."
+    )
     return documents
+
 
 def update_document_correspondent(doc_id, new_correspondent_id):
     """
     Updates the correspondent of a document.
     """
-    logging.info(f"Updating document ID {doc_id} to correspondent ID {new_correspondent_id}.")
+    logging.info(
+        f"Updating document ID {doc_id} to correspondent ID {new_correspondent_id}."
+    )
     url = f"{paperless_url}/api/documents/{doc_id}/"
     payload = {"correspondent": new_correspondent_id}
     response = requests.patch(url, headers=headers, json=payload)
     response.raise_for_status()
     logging.info(f"Document ID {doc_id} updated successfully.")
 
+
 def update_correspondent_name(correspondent_id, new_name):
     """
     Updates the name of a correspondent.
     """
-    logging.info(f"Updating correspondent ID {correspondent_id} with new name: {new_name}.")
+    logging.info(
+        f"Updating correspondent ID {correspondent_id} with new name: {new_name}."
+    )
     url = f"{paperless_url}/api/correspondents/{correspondent_id}/"
     payload = {"name": new_name}
     response = requests.patch(url, headers=headers, json=payload)
     response.raise_for_status()
     logging.info(f"Correspondent ID {correspondent_id} updated successfully.")
+
 
 def main():
     logging.info("Starting duplicate correspondent cleanup.")
@@ -87,7 +101,9 @@ def main():
 
     for name, group in grouped.items():
         if len(group) > 1:
-            logging.info(f"Found duplicates for name '{name}': {[c['id'] for c in group]}.")
+            logging.info(
+                f"Found duplicates for name '{name}': {[c['id'] for c in group]}."
+            )
 
             # Sort by ID to find the oldest correspondent
             group.sort(key=lambda c: c["id"])
@@ -101,11 +117,15 @@ def main():
 
             # Delete duplicate correspondents
             for correspondent in group[1:]:
-                logging.info(f"Deleting duplicate correspondent ID {correspondent['id']}.")
+                logging.info(
+                    f"Deleting duplicate correspondent ID {correspondent['id']}."
+                )
                 url = f"{paperless_url}/api/correspondents/{correspondent['id']}/"
                 response = requests.delete(url, headers=headers)
                 response.raise_for_status()
-                logging.info(f"Deleted duplicate correspondent ID {correspondent['id']}.")
+                logging.info(
+                    f"Deleted duplicate correspondent ID {correspondent['id']}."
+                )
 
             # Update the name of the oldest correspondent to title case if needed
             title_case_name = oldest["name"].title()
@@ -113,6 +133,7 @@ def main():
                 update_correspondent_name(oldest["id"], title_case_name)
 
     logging.info("Duplicate correspondent cleanup completed.")
+
 
 if __name__ == "__main__":
     main()

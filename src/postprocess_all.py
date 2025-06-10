@@ -54,11 +54,22 @@ def main():
     # Process each document
     for document in documents:
         document_id = document["id"]
-        document_tags = document.get("tags", [])
+
+        # Process tags to handle both integers and dictionaries
+        document_tag_ids = set()
+        for tag in document.get("tags", []):
+            if isinstance(tag, dict):
+                tag_id = tag.get("id")
+                if tag_id is not None:
+                    document_tag_ids.add(tag_id)
+            elif isinstance(tag, int):
+                document_tag_ids.add(tag)
 
         # Skip documents that already have the 'gpt-correspondant' tag
-        if gpt_tag_id in document_tags:
-            logging.info(f"Skipping document ID {document_id} as it already has the 'gpt-correspondant' tag.")
+        if gpt_tag_id in document_tag_ids:
+            logging.info(
+                f"Skipping document ID {document_id} as it already has the 'gpt-correspondant' tag."
+            )
             continue
 
         # Process the document

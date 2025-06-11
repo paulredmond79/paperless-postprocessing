@@ -2,7 +2,6 @@
 import json
 import logging
 import os
-import re
 import sys
 
 import requests
@@ -69,7 +68,7 @@ def create_correspondent(name):
             f"Correspondent '{name}' created successfully with ID: {correspondent['id']}"
         )
         return correspondent
-    except requests.exceptions.HTTPError as e:
+    except requests.exceptions.HTTPError:
         if response.status_code == 400:
             logging.error(
                 f"Failed to create correspondent '{name}'. Response: {response.text}"
@@ -125,8 +124,21 @@ def create_tag(name):
 
 def add_tag_to_document(doc_id, tag_id):
     logging.info(f"Adding tag ID {tag_id} to document ID {doc_id}.")
+    current = fetch_document_details(doc_id)
+
+    existing_tags = set()
+    for tag in current.get("tags", []):
+        if isinstance(tag, dict):
+            tag_id_value = tag.get("id")
+            if tag_id_value is not None:
+                existing_tags.add(tag_id_value)
+        elif isinstance(tag, int):
+            existing_tags.add(tag)
+
+    existing_tags.add(tag_id)
+
     doc_url = f"{paperless_url}/api/documents/{doc_id}/"
-    payload = {"tags": [tag_id]}
+    payload = {"tags": sorted(existing_tags)}
     logging.debug(f"Payload for adding tag to document: {payload}")
     response = requests.patch(doc_url, headers=headers, json=payload)
     response.raise_for_status()
@@ -145,29 +157,38 @@ def determine_correspondent_with_openai(ocr_data, correspondents):
     max_ocr_length = 1000
     truncated_ocr_data = ocr_data[:max_ocr_length]
 
-    prompt = f"""
-    You are a document assistant. Based on the OCR text below, determine the most likely correspondent name.
+    prompt = (
+        "You are a document assistant. Based on the OCR text below, determine the "
+        "most likely correspondent name.\n\n"
+        "The correspondent of a document is the person, institution, or company "
+        "that a document originates from. Prefer company names or institution "
+        "names over personal names when possible. For example Goatstown Medical "
+        "Center over Dr. Rodney Reagan or similar. The correspondent name should "
+        "be a clear and identifiable name, not a generic term or phrase.\n\n"
+        "There are three scenarios to consider:\n"
+        "1. If there is an appropriate match in the list of already existing "
+        "correspondents, return the following JSON:\n"
+        '   {"status": "match", "correspondent": "<matched_correspondent_name>"}'
+        "\n2. If there is no appropriate match in the list of already existing "
+        "correspondents but you can determine an appropriate new correspondent, "
+        "return the following JSON:\n"
+        '   {"status": "suggest_new", "correspondent": "<suggested_correspondent_name>"}'
+        "\n3. If there is no appropriate match in the list of already existing "
+        "correspondents and you cannot determine one, return the following JSON:\n"
+        '   {"status": "no_match", "reason": "Unable to determine a correspondent"}'
+        "\n\nExisting correspondents:\n"
+        f"{', '.join(truncated_correspondents)}\n\n"
+        "OCR Text:\n"
+        f"{truncated_ocr_data}\n\n"
+        "Return the result as specified above, but double check your response "
+        "before you do."
+    )
 
-    The correspondent of a document is the person, institution, or company that a document originates from.  Prefer company names or institution names over personal names when possible. For example Goatstown Medical Center over Dr. Rodney Reagan or similar. The correspondent name should be a clear and identifiable name, not a generic term or phrase.
-
-    There are three scenarios to consider:
-    1. If there is an appropriate match in the list of already existing correspondents, return the following JSON:
-       {{"status": "match", "correspondent": "<matched_correspondent_name>"}}
-    2. If there is no appropriate match in the list of already existing correspondents but you can determine an appropriate new correspondent, return the following JSON:
-       {{"status": "suggest_new", "correspondent": "<suggested_correspondent_name>"}}
-    3. If there is no appropriate match in the list of already existing correspondents and you cannot determine one, return the following JSON:
-       {{"status": "no_match", "reason": "Unable to determine a correspondent"}}
-
-    Existing correspondents:
-    {', '.join(correspondents.keys())}
-
-    OCR Text:
-    {truncated_ocr_data}
-
-    Return the result as specified above, but double check your response before you do.
-    """
-
-    system_message = "You're a document assistant for metadata extraction. The correspondent of a document is the person, institution, or company that a document originates from."
+    system_message = (
+        "You're a document assistant for metadata extraction. The correspondent "
+        "of a document is the person, institution, or company that a document "
+        "originates from."
+    )
     logging.debug(f"OpenAI prompt: {prompt}")
     try:
         ai_response = client.chat.completions.create(
@@ -293,7 +314,8 @@ def main(doc_id):
         # Add the 'gpt-correspondent-unable-to-determine' tag to the document
         if unable_to_determine_tag["id"] not in current_tags:
             logging.info(
-                f"Adding tag '{unable_to_determine_tag['name']}' (ID: {unable_to_determine_tag['id']}) to document ID {doc_id}."
+                f"Adding tag '{unable_to_determine_tag['name']}' (ID: "
+                f"{unable_to_determine_tag['id']}) to document ID {doc_id}."
             )
             add_tag_to_document(doc_id, unable_to_determine_tag["id"])
 
@@ -316,7 +338,10 @@ def main(doc_id):
     # Update the document's correspondent only if it differs
     if current_correspondent_id != correspondent["id"]:
         logging.info(
-            f"Current correspondent ID ({current_correspondent_id}) differs from determined correspondent ID ({correspondent['id']}). Updating the document."
+            "Current correspondent ID (%s) differs from determined "
+            "correspondent ID (%s). Updating the document.",
+            current_correspondent_id,
+            correspondent["id"],
         )
         update_document_correspondent(doc_id, correspondent["id"])
 
@@ -334,12 +359,16 @@ def main(doc_id):
         # Add tag to document only if it is not already present
         if tag["id"] not in current_tags:
             logging.info(
-                f"Adding tag '{tag['name']}' (ID: {tag['id']}) to document ID {doc_id}."
+                f"Adding tag '{tag['name']}' (ID: {tag['id']}) "
+                f"to document ID {doc_id}."
             )
             add_tag_to_document(doc_id, tag["id"])
     else:
         logging.info(
-            f"No update needed. Current correspondent ID ({current_correspondent_id}) matches the determined correspondent ID ({correspondent['id']})."
+            "No update needed. Current correspondent ID (%s) matches the "
+            "determined correspondent ID (%s).",
+            current_correspondent_id,
+            correspondent["id"],
         )
         tag = None  # Ensure 'tag' is defined even if no updates are made
 
@@ -367,7 +396,8 @@ def main(doc_id):
         # Add the 'gpt-correspondent-unable-to-determine' tag to the document
         if unable_to_determine_tag["id"] not in current_tags:
             logging.info(
-                f"Adding tag '{unable_to_determine_tag['name']}' (ID: {unable_to_determine_tag['id']}) to document ID {doc_id}."
+                f"Adding tag '{unable_to_determine_tag['name']}' (ID: "
+                f"{unable_to_determine_tag['id']}) to document ID {doc_id}."
             )
             add_tag_to_document(doc_id, unable_to_determine_tag["id"])
 

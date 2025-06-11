@@ -1,5 +1,4 @@
 import logging
-import os
 import re
 
 import requests
@@ -54,11 +53,21 @@ def create_tag(api_url, headers, name):
 
 def add_tag_to_document(api_url, headers, document_id, tag_id):
     try:
-        response = requests.post(
-            f"{api_url}/api/documents/{document_id}/tags/",
-            headers=headers,
-            json={"tag": tag_id},
-        )
+        current = fetch_document_details(api_url, headers, document_id)
+        existing_tags = set()
+        for tag in current.get("tags", []):
+            if isinstance(tag, dict):
+                tid = tag.get("id")
+                if tid is not None:
+                    existing_tags.add(tid)
+            elif isinstance(tag, int):
+                existing_tags.add(tag)
+
+        existing_tags.add(tag_id)
+
+        doc_url = f"{api_url}/api/documents/{document_id}/"
+        payload = {"tags": sorted(existing_tags)}
+        response = requests.patch(doc_url, headers=headers, json=payload)
         response.raise_for_status()
         print(f"✅ Successfully added tag to document {document_id}.")
     except Exception as e:

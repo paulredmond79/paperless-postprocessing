@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-import postprocess_all
+import postprocess_all  # noqa: E402
 
 
 def test_skip_documents_with_tag_dicts(monkeypatch):

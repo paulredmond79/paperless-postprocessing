@@ -2,9 +2,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-import os
-
-import post
+import post  # noqa: E402
 
 
 def test_to_snake_case_basic():

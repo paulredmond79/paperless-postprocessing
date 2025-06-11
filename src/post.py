@@ -8,8 +8,11 @@ from datetime import datetime
 
 from openai import OpenAI
 
-from utils.api_helpers import (fetch_custom_fields, fetch_document_details,
-                               get_correspondents, update_document_metadata)
+from utils.api_helpers import (
+    fetch_custom_fields,
+    fetch_document_details,
+    update_document_metadata,
+)
 
 logging.basicConfig(level=logging.INFO)
 

@@ -6,6 +6,7 @@ import sys
 
 import requests
 from openai import OpenAI
+
 from utils.api_helpers import fetch_ocr_data, fetch_or_create_tag
 
 # Configure logging
@@ -25,6 +26,9 @@ headers = {
 
 
 def fetch_correspondents():
+    """
+    Fetches existing correspondents as a dictionary keyed by name.
+    """
     logging.info("Fetching existing correspondents from Paperless-ngx.")
     correspondents = {}
     next_url = f"{paperless_url}/api/correspondents/"
@@ -43,6 +47,9 @@ def fetch_correspondents():
 
 
 def create_correspondent(name):
+    """
+    Creates a correspondent and returns the API response.
+    """
     logging.info(f"Creating new correspondent: {name}")
     payload = {"name": name}
     logging.debug(f"Payload for creating correspondent: {payload}")
@@ -88,6 +95,9 @@ def create_correspondent(name):
 
 
 def fetch_tags():
+    """
+    Fetches existing tags as a dictionary keyed by name.
+    """
     logging.info("Fetching existing tags from Paperless-ngx.")
     response = requests.get(f"{paperless_url}/api/tags/", headers=headers)
     response.raise_for_status()
@@ -98,6 +108,9 @@ def fetch_tags():
 
 
 def create_tag(name):
+    """
+    Creates a tag and returns the API response.
+    """
     logging.info(f"Creating new tag: {name}")
     payload = {"name": name}
     logging.debug(f"Payload for creating tag: {payload}")
@@ -112,6 +125,9 @@ def create_tag(name):
 
 
 def add_tag_to_document(doc_id, tag_id):
+    """
+    Adds a tag to a document if it is not already present.
+    """
     logging.info(f"Adding tag ID {tag_id} to document ID {doc_id}.")
     current = fetch_document_details(doc_id)
 
@@ -135,6 +151,9 @@ def add_tag_to_document(doc_id, tag_id):
 
 
 def determine_correspondent_with_openai(ocr_data, correspondents):
+    """
+    Uses OpenAI to guess the correspondent from OCR text.
+    """
     logging.info("Determining correspondent using OpenAI.")
     client = OpenAI(api_key=openai_api_key)
 
@@ -246,6 +265,9 @@ def fetch_document_details(doc_id):
 
 
 def main(doc_id):
+    """
+    Post-processes a single document by ID.
+    """
     logging.info(f"Starting post-processing for document ID: {doc_id}")
 
     # Fetch document details
@@ -290,7 +312,9 @@ def main(doc_id):
 
         # Fetch or create the 'gpt-correspondent-unable-to-determine' tag
         unable_to_determine_tag_name = "gpt-correspondent-unable-to-determine"
-        unable_to_determine_tag = fetch_or_create_tag(paperless_url, headers, unable_to_determine_tag_name)
+        unable_to_determine_tag = fetch_or_create_tag(
+            paperless_url, headers, unable_to_determine_tag_name
+        )
 
         # Add the tag to the document
         if unable_to_determine_tag["id"] not in current_tags:
@@ -360,7 +384,9 @@ def main(doc_id):
 
         # Fetch or create the 'gpt-correspondent-unable-to-determine' tag
         unable_to_determine_tag_name = "gpt-correspondent-unable-to-determine"
-        unable_to_determine_tag = fetch_or_create_tag(paperless_url, headers, unable_to_determine_tag_name)
+        unable_to_determine_tag = fetch_or_create_tag(
+            paperless_url, headers, unable_to_determine_tag_name
+        )
 
         # Add the tag to the document
         if unable_to_determine_tag["id"] not in current_tags:

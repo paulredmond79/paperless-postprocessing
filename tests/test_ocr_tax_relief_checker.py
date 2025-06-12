@@ -1,44 +1,63 @@
-import sys
-import os
-import pytest
 import json
-from unittest.mock import patch, MagicMock
-from src.ocr_tax_relief_checker import  analyze_document_with_openai
+import os
+import sys
+from unittest.mock import MagicMock, patch
 
+import pytest
 
 # Explicitly set the `PYTHONPATH` to include the `src` directory
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src'))
-os.environ['PYTHONPATH'] = src_path
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
+os.environ["PYTHONPATH"] = src_path
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
+os.environ.setdefault("OPENAI_API_KEY", "test")
+
+from ocr_tax_relief_checker import analyze_document_with_openai  # noqa: E402
+
+
 def mock_openai_response(valid=True):
     if valid:
-        return MagicMock(choices=[
-            MagicMock(message=MagicMock(content=json.dumps({
-                "detected_services": [
-                    {
-                        "description": "Broadband",
-                        "category": "Utilities",
-                        "allowable": True,
-                        "disallow_reason": "",
-                        "amount": 50.0
-                    }
-                ],
-                "total_amount_claimable": 50.0,
-                "covered_under": "PAYE",
-                "confidence_score": 0.95,
-                "analysis": "Broadband is allowable under utilities."
-            })))
-        ])
+        return MagicMock(
+            choices=[
+                MagicMock(
+                    message=MagicMock(
+                        content=json.dumps(
+                            {
+                                "detected_services": [
+                                    {
+                                        "description": "Broadband",
+                                        "category": "Utilities",
+                                        "allowable": True,
+                                        "disallow_reason": "",
+                                        "amount": 50.0,
+                                    }
+                                ],
+                                "total_amount_claimable": 50.0,
+                                "covered_under": "PAYE",
+                                "confidence_score": 0.95,
+                                "analysis": "Broadband is allowable under utilities.",
+                            }
+                        )
+                    )
+                )
+            ]
+        )
     else:
-        return MagicMock(choices=[
-            MagicMock(message=MagicMock(content=json.dumps({
-                "invalid_field": "This is an invalid response"
-            })))
-        ])
+        return MagicMock(
+            choices=[
+                MagicMock(
+                    message=MagicMock(
+                        content=json.dumps(
+                            {"invalid_field": "This is an invalid response"}
+                        )
+                    )
+                )
+            ]
+        )
 
-@patch("src.ocr_tax_relief_checker.client.chat.completions.create")
+
+@patch("ocr_tax_relief_checker.client.chat.completions.create")
 def test_analyze_document_with_openai_valid(mock_create):
     mock_create.return_value = mock_openai_response(valid=True)
 
@@ -49,8 +68,12 @@ def test_analyze_document_with_openai_valid(mock_create):
     assert result is not None
     assert "detected_services" in json.loads(result)
 
-@patch("src.utils.api_helpers.fetch_or_create_tag", side_effect=Exception("Failed to create tag"))
-@patch("src.ocr_tax_relief_checker.client.chat.completions.create")
+
+@patch(
+    "utils.api_helpers.fetch_or_create_tag",
+    side_effect=Exception("Failed to create tag"),
+)
+@patch("ocr_tax_relief_checker.client.chat.completions.create")
 def test_analyze_document_with_openai_invalid(mock_create, mock_fetch_or_create_tag):
     mock_create.return_value = mock_openai_response(valid=False)
 

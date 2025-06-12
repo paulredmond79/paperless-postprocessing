@@ -1,9 +1,8 @@
 import logging
 import re
-import time
-from requests.exceptions import HTTPError
 
 import requests
+
 
 # Tag Management Functions
 def fetch_tags(api_url, headers):
@@ -18,17 +17,21 @@ def fetch_tags(api_url, headers):
         logging.error(f"Failed to fetch tags: {e}")
         return {}
 
+
 def create_tag(api_url, headers, name):
     """
     Creates a new tag with the given name and returns its ID.
     """
     try:
-        response = requests.post(f"{api_url}/api/tags/", headers=headers, json={"name": name})
+        response = requests.post(
+            f"{api_url}/api/tags/", headers=headers, json={"name": name}
+        )
         response.raise_for_status()
         return response.json().get("id")
     except Exception as e:
         logging.error(f"Failed to create tag '{name}': {e}")
         return None
+
 
 def fetch_or_create_tag(api_url, headers, tag_name):
     """
@@ -48,13 +51,17 @@ def fetch_or_create_tag(api_url, headers, tag_name):
         logging.error(f"Failed to fetch or create tag '{tag_name}': {e}")
         raise
 
+
 def add_tag_to_document(api_url, headers, document_id, tag_id):
     """
     Adds a tag to a document by its ID.
     """
     try:
         current = fetch_document_details(api_url, headers, document_id)
-        existing_tags = {tag.get("id") if isinstance(tag, dict) else tag for tag in current.get("tags", [])}
+        existing_tags = {
+            tag.get("id") if isinstance(tag, dict) else tag
+            for tag in current.get("tags", [])
+        }
         existing_tags.add(tag_id)
 
         doc_url = f"{api_url}/api/documents/{document_id}/"
@@ -68,6 +75,7 @@ def add_tag_to_document(api_url, headers, document_id, tag_id):
         logging.error(f"Failed to add tag to document {document_id}: {e}")
         raise Exception(f"Failed to add tag {tag_id} to document {document_id}.") from e
 
+
 # Correspondent Management Functions
 def fetch_correspondents(api_url, headers):
     """
@@ -76,22 +84,29 @@ def fetch_correspondents(api_url, headers):
     try:
         response = requests.get(f"{api_url}/api/correspondents/", headers=headers)
         response.raise_for_status()
-        return {correspondent["name"]: correspondent["id"] for correspondent in response.json().get("results", [])}
+        return {
+            correspondent["name"]: correspondent["id"]
+            for correspondent in response.json().get("results", [])
+        }
     except Exception as e:
         logging.error(f"Failed to fetch correspondents: {e}")
         return {}
+
 
 def create_correspondent(api_url, headers, name):
     """
     Creates a new correspondent with the given name and returns its ID.
     """
     try:
-        response = requests.post(f"{api_url}/api/correspondents/", headers=headers, json={"name": name})
+        response = requests.post(
+            f"{api_url}/api/correspondents/", headers=headers, json={"name": name}
+        )
         response.raise_for_status()
         return response.json().get("id")
     except Exception as e:
         logging.error(f"Failed to create correspondent '{name}': {e}")
         return None
+
 
 def get_correspondents(api_url, headers):
     """
@@ -108,6 +123,7 @@ def get_correspondents(api_url, headers):
         logging.error(f"Failed to fetch correspondents: {e}")
         return {}
 
+
 # Document Management Functions
 def fetch_document_details(api_url, headers, doc_id):
     """
@@ -123,6 +139,7 @@ def fetch_document_details(api_url, headers, doc_id):
         logging.error(f"Failed to fetch document details for ID {doc_id}: {e}")
         raise
 
+
 def update_document_metadata(api_url, headers, doc_id, payload):
     """
     Updates the metadata of a document by its ID.
@@ -137,6 +154,7 @@ def update_document_metadata(api_url, headers, doc_id, payload):
         logging.error(f"Failed to update document metadata for ID {doc_id}: {e}")
         raise
 
+
 # Custom Field Management Functions
 def fetch_custom_fields(api_url, headers):
     """
@@ -147,14 +165,20 @@ def fetch_custom_fields(api_url, headers):
         response = requests.get(f"{api_url}/api/custom_fields/", headers=headers)
         response.raise_for_status()
         return {
-            to_snake_case(item["name"]): {"id": item["id"], "data_type": item["data_type"]}
+            to_snake_case(item["name"]): {
+                "id": item["id"],
+                "data_type": item["data_type"],
+            }
             for item in response.json().get("results", [])
         }
     except Exception as e:
         logging.error(f"Failed to fetch custom fields metadata: {e}")
         raise
 
-def ensure_custom_field_exists(api_url, headers, field_name, data_type="string", extra_data=None):
+
+def ensure_custom_field_exists(
+    api_url, headers, field_name, data_type="string", extra_data=None
+):
     """
     Ensures a custom field exists by either fetching it or creating it if it doesn't exist.
     Returns the custom field metadata.
@@ -169,9 +193,15 @@ def ensure_custom_field_exists(api_url, headers, field_name, data_type="string",
             logging.info(f"Custom field '{field_name}' already exists.")
             return results[0]
 
-        logging.info(f"Creating custom field '{field_name}' with data type '{data_type}'.")
+        logging.info(
+            f"Creating custom field '{field_name}' with data type '{data_type}'."
+        )
         create_url = f"{api_url}/api/custom_fields/"
-        payload = {"name": field_name, "data_type": data_type, "extra_data": extra_data or {}}
+        payload = {
+            "name": field_name,
+            "data_type": data_type,
+            "extra_data": extra_data or {},
+        }
         response = requests.post(create_url, headers=headers, json=payload)
         response.raise_for_status()
         return response.json()
@@ -179,12 +209,14 @@ def ensure_custom_field_exists(api_url, headers, field_name, data_type="string",
         logging.error(f"Failed to ensure custom field '{field_name}': {e}")
         raise Exception(f"Failed to ensure custom field '{field_name}'.") from e
 
+
 # Utility Functions
 def to_snake_case(text):
     """
     Converts a given text to snake_case.
     """
     return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
 
 def fetch_ocr_data(api_url, headers, doc_id):
     """

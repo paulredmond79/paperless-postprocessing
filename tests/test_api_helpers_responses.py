@@ -1,23 +1,30 @@
+import sys
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 import requests
-from unittest.mock import patch
-from src.utils.api_helpers import (
-    fetch_tags,
-    create_tag,
-    fetch_or_create_tag,
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))  # noqa: E402
+
+# isort: off
+from utils.api_helpers import (  # noqa: E402
     add_tag_to_document,
-    fetch_document_details,
-    update_document_metadata,
-    fetch_correspondents,
     create_correspondent,
-    get_correspondents,
+    create_tag,
     ensure_custom_field_exists,
+    fetch_correspondents,
     fetch_ocr_data,
-)
+    fetch_or_create_tag,
+    fetch_tags,
+)  # noqa: E402
+
+# isort: on
 
 # Mock API URL and headers
 API_URL = "http://mockapi.com"
 HEADERS = {"Authorization": "Token mocktoken"}
+
 
 # Positive test cases
 def test_fetch_tags_success():
@@ -29,6 +36,7 @@ def test_fetch_tags_success():
         tags = fetch_tags(API_URL, HEADERS)
         assert tags == {"tag1": 1, "tag2": 2}
 
+
 def test_create_tag_success():
     mock_response = {"id": 1}
     with patch("requests.post") as mock_post:
@@ -38,6 +46,7 @@ def test_create_tag_success():
         tag_id = create_tag(API_URL, HEADERS, "new_tag")
         assert tag_id == 1
 
+
 def test_fetch_or_create_tag_fetch_success():
     mock_response = {"results": [{"name": "tag1", "id": 1}]}
     with patch("requests.get") as mock_get:
@@ -46,6 +55,7 @@ def test_fetch_or_create_tag_fetch_success():
 
         tag_id = fetch_or_create_tag(API_URL, HEADERS, "tag1")
         assert tag_id == 1
+
 
 def test_fetch_or_create_tag_create_success():
     mock_get_response = {"results": []}
@@ -59,6 +69,7 @@ def test_fetch_or_create_tag_create_success():
 
         tag_id = fetch_or_create_tag(API_URL, HEADERS, "new_tag")
         assert tag_id == 2
+
 
 def test_fetch_correspondents_success(monkeypatch):
     fake_response = {"results": [{"name": "John Doe", "id": 1}]}
@@ -74,6 +85,7 @@ def test_fetch_correspondents_success(monkeypatch):
     result = fetch_correspondents(API_URL, HEADERS)
     assert result == {"John Doe": 1}
 
+
 def test_create_correspondent_success(monkeypatch):
     fake_response = {"id": 1}
 
@@ -87,6 +99,7 @@ def test_create_correspondent_success(monkeypatch):
     monkeypatch.setattr("requests.post", lambda *args, **kwargs: MockResponse())
     result = create_correspondent(API_URL, HEADERS, "John Doe")
     assert result == 1
+
 
 def test_ensure_custom_field_exists_success(monkeypatch):
     fake_response = {"results": [{"id": 1, "name": "Field", "data_type": "string"}]}
@@ -102,6 +115,7 @@ def test_ensure_custom_field_exists_success(monkeypatch):
     result = ensure_custom_field_exists(API_URL, HEADERS, "Field")
     assert result == {"id": 1, "name": "Field", "data_type": "string"}
 
+
 def test_fetch_ocr_data_success(monkeypatch):
     fake_response = {"content": "Sample OCR Data"}
 
@@ -116,6 +130,7 @@ def test_fetch_ocr_data_success(monkeypatch):
     result = fetch_ocr_data(API_URL, HEADERS, 123)
     assert result == "Sample OCR Data"
 
+
 # Negative test cases
 def test_fetch_tags_failure():
     with patch("requests.get") as mock_get:
@@ -124,22 +139,29 @@ def test_fetch_tags_failure():
         tags = fetch_tags(API_URL, HEADERS)
         assert tags == {}
 
+
 def test_create_tag_failure():
     with patch("requests.post") as mock_post:
         mock_post.return_value.status_code = 500
         mock_post.return_value.json.return_value = {}
-        mock_post.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError
+        mock_post.return_value.raise_for_status.side_effect = (
+            requests.exceptions.HTTPError
+        )
 
         tag_id = create_tag(API_URL, HEADERS, "new_tag")
         assert tag_id is None
 
+
 def test_fetch_or_create_tag_fetch_failure():
     with patch("requests.get") as mock_get:
         mock_get.return_value.status_code = 500
-        mock_get.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError
+        mock_get.return_value.raise_for_status.side_effect = (
+            requests.exceptions.HTTPError
+        )
 
         with pytest.raises(Exception):
             fetch_or_create_tag(API_URL, HEADERS, "tag1")
+
 
 def test_fetch_or_create_tag_create_failure():
     mock_get_response = {"results": []}
@@ -148,10 +170,13 @@ def test_fetch_or_create_tag_create_failure():
         mock_get.return_value.json.return_value = mock_get_response
 
         mock_post.return_value.status_code = 500
-        mock_post.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError
+        mock_post.return_value.raise_for_status.side_effect = (
+            requests.exceptions.HTTPError
+        )
 
         with pytest.raises(Exception):
             fetch_or_create_tag(API_URL, HEADERS, "new_tag")
+
 
 def test_add_tag_to_document_success():
     mock_response = {"tags": [1, 2, 3]}
@@ -165,6 +190,7 @@ def test_add_tag_to_document_success():
         add_tag_to_document(API_URL, HEADERS, 123, 3)
         mock_patch.assert_called_once()
 
+
 def test_add_tag_to_document_failure():
     with patch("requests.get") as mock_get, patch("requests.patch") as mock_patch:
         mock_get.return_value.status_code = 200
@@ -174,6 +200,7 @@ def test_add_tag_to_document_failure():
 
         with pytest.raises(Exception, match="Failed to add tag 3 to document 123"):
             add_tag_to_document(API_URL, HEADERS, 123, 3)
+
 
 def test_dummy_import():
     assert fetch_tags is not None

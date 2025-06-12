@@ -9,15 +9,18 @@ from datetime import datetime
 from openai import OpenAI
 
 from utils.api_helpers import (
-    fetch_document_details,
-    update_document_metadata,
-    ensure_custom_field_exists,
     fetch_custom_fields,
+    fetch_document_details,
     to_snake_case,
-    fetch_tags,
-    create_tag,
-    fetch_or_create_tag,  # Removed alias ensure_tag_exists
+    update_document_metadata,
 )
+
+__all__ = [
+    "to_snake_case",
+    "clean_fields",
+    "generate_metadata_with_openai",
+    "main",
+]
 
 logging.basicConfig(level=logging.INFO)
 

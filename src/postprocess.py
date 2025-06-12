@@ -6,6 +6,7 @@ import sys
 
 import requests
 from openai import OpenAI
+
 from utils.api_helpers import fetch_ocr_data, fetch_or_create_tag
 
 # Configure logging
@@ -290,7 +291,9 @@ def main(doc_id):
 
         # Fetch or create the 'gpt-correspondent-unable-to-determine' tag
         unable_to_determine_tag_name = "gpt-correspondent-unable-to-determine"
-        unable_to_determine_tag = fetch_or_create_tag(paperless_url, headers, unable_to_determine_tag_name)
+        unable_to_determine_tag = fetch_or_create_tag(
+            paperless_url, headers, unable_to_determine_tag_name
+        )
 
         # Add the tag to the document
         if unable_to_determine_tag["id"] not in current_tags:
@@ -360,7 +363,9 @@ def main(doc_id):
 
         # Fetch or create the 'gpt-correspondent-unable-to-determine' tag
         unable_to_determine_tag_name = "gpt-correspondent-unable-to-determine"
-        unable_to_determine_tag = fetch_or_create_tag(paperless_url, headers, unable_to_determine_tag_name)
+        unable_to_determine_tag = fetch_or_create_tag(
+            paperless_url, headers, unable_to_determine_tag_name
+        )
 
         # Add the tag to the document
         if unable_to_determine_tag["id"] not in current_tags:

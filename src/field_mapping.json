@@ -1,0 +1,23 @@
+{
+
+    "detected_services": {
+        "name": "Detected Services",
+        "data_type": "string"
+    },
+    "total_amount_claimable": {
+        "name": "Total Amount Claimable",
+        "data_type": "monetary"
+    },
+    "covered_under": {
+        "name": "Covered Under",
+        "data_type": "string"
+    },
+    "confidence_score": {
+        "name": "Confidence Score",
+        "data_type": "float"
+    },
+    "analysis": {
+        "name": "Analysis",
+        "data_type": "string"
+    }
+}

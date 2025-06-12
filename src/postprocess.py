@@ -6,6 +6,7 @@ import sys
 
 import requests
 from openai import OpenAI
+from utils.api_helpers import fetch_ocr_data, fetch_or_create_tag
 
 # Configure logging
 logging.basicConfig(
@@ -21,18 +22,6 @@ headers = {
     "Authorization": f"Token {paperless_token}",
     "Content-Type": "application/json",
 }
-
-
-def fetch_ocr_data(doc_id):
-    logging.info(f"Fetching OCR data for document ID: {doc_id}")
-    doc_url = f"{paperless_url}/api/documents/{doc_id}/"
-    logging.debug(f"Requesting OCR data from URL: {doc_url}")
-    response = requests.get(doc_url, headers=headers)
-    response.raise_for_status()
-    ocr_data = response.json().get("content", "")
-    logging.debug(f"OCR data response: {ocr_data}")
-    logging.info(f"OCR data fetched successfully for document ID: {doc_id}")
-    return ocr_data
 
 
 def fetch_correspondents():
@@ -272,7 +261,7 @@ def main(doc_id):
             current_tags.add(tag)
 
     # Fetch OCR data
-    ocr_data = document_details.get("content", "")
+    ocr_data = fetch_ocr_data(paperless_url, headers, doc_id)
     if not ocr_data:
         logging.warning("No OCR content found for document.")
         sys.exit(0)
@@ -299,24 +288,12 @@ def main(doc_id):
             "AI could not determine a correspondent. Adding 'gpt-correspondent-unable-to-determine' tag."
         )
 
-        # Fetch existing tags
-        tags = fetch_tags()
+        # Fetch or create the 'gpt-correspondent-unable-to-determine' tag
         unable_to_determine_tag_name = "gpt-correspondent-unable-to-determine"
-        unable_to_determine_tag = tags.get(unable_to_determine_tag_name.lower())
+        unable_to_determine_tag = fetch_or_create_tag(paperless_url, headers, unable_to_determine_tag_name)
 
-        # Create the 'gpt-correspondent-unable-to-determine' tag if it does not exist
-        if not unable_to_determine_tag:
-            logging.info(
-                f"No matching tag found for '{unable_to_determine_tag_name}'. Creating a new one."
-            )
-            unable_to_determine_tag = create_tag(unable_to_determine_tag_name)
-
-        # Add the 'gpt-correspondent-unable-to-determine' tag to the document
+        # Add the tag to the document
         if unable_to_determine_tag["id"] not in current_tags:
-            logging.info(
-                f"Adding tag '{unable_to_determine_tag['name']}' (ID: "
-                f"{unable_to_determine_tag['id']}) to document ID {doc_id}."
-            )
             add_tag_to_document(doc_id, unable_to_determine_tag["id"])
 
         return  # Exit without updating the correspondent
@@ -381,24 +358,12 @@ def main(doc_id):
             "OpenAI could not determine a correspondent. Adding 'gpt-correspondent-unable-to-determine' tag."
         )
 
-        # Fetch existing tags
-        tags = fetch_tags()
+        # Fetch or create the 'gpt-correspondent-unable-to-determine' tag
         unable_to_determine_tag_name = "gpt-correspondent-unable-to-determine"
-        unable_to_determine_tag = tags.get(unable_to_determine_tag_name.lower())
+        unable_to_determine_tag = fetch_or_create_tag(paperless_url, headers, unable_to_determine_tag_name)
 
-        # Create the 'gpt-correspondent-unable-to-determine' tag if it does not exist
-        if not unable_to_determine_tag:
-            logging.info(
-                f"No matching tag found for '{unable_to_determine_tag_name}'. Creating a new one."
-            )
-            unable_to_determine_tag = create_tag(unable_to_determine_tag_name)
-
-        # Add the 'gpt-correspondent-unable-to-determine' tag to the document
+        # Add the tag to the document
         if unable_to_determine_tag["id"] not in current_tags:
-            logging.info(
-                f"Adding tag '{unable_to_determine_tag['name']}' (ID: "
-                f"{unable_to_determine_tag['id']}) to document ID {doc_id}."
-            )
             add_tag_to_document(doc_id, unable_to_determine_tag["id"])
 
         return  # Exit without updating the correspondent

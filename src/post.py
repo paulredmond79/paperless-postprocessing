@@ -9,16 +9,17 @@ from datetime import datetime
 from openai import OpenAI
 
 from utils.api_helpers import (
-    fetch_custom_fields,
     fetch_document_details,
     update_document_metadata,
+    ensure_custom_field_exists,
+    fetch_custom_fields,
+    to_snake_case,
+    fetch_tags,
+    create_tag,
+    fetch_or_create_tag,  # Removed alias ensure_tag_exists
 )
 
 logging.basicConfig(level=logging.INFO)
-
-
-def to_snake_case(text):
-    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
 
 
 def clean_fields(fields, field_meta):

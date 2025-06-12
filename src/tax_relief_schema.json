@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TaxReliefResponse",
+  "type": "object",
+  "properties": {
+    "detected_services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "category": { 
+            "type": "string",
+            "enum": [
+              "Work From Home Expenses",
+              "Medical Expenses",
+              "Rental Property Expenses",
+              "Professional Fees",
+              "Utilities",
+              "Insurance",
+              "Other Allowable Expenses",
+              "Capital Improvement"
+            ]
+          },
+          "allowable": { "type": "boolean" },
+          "disallow_reason": { "type": "string" },
+          "amount": { "type": "number", "minimum": 0 }
+        },
+        "required": ["description", "category", "allowable", "disallow_reason", "amount"]
+      }
+    },
+    "total_amount_claimable": { "type": "number", "minimum": 0 },
+    "covered_under": { 
+      "type": ["string", "null"],
+      "enum": ["PAYE", "Private Landlord", ""]
+    },
+    "confidence_score": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "analysis": { "type": "string" }
+  },
+  "required": [
+    "detected_services",
+    "total_amount_claimable",
+    "covered_under",
+    "confidence_score",
+    "analysis"
+  ],
+  "additionalProperties": false
+}

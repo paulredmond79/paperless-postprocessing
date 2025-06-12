@@ -62,3 +62,4 @@ Desktop.ini
 
 # Temporary or unrelated files
 Paperless-ngx REST API (9).yaml
+src/restore_tags.py

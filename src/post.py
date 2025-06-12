@@ -132,6 +132,12 @@ def main(doc_id):
         sys.exit(0)
 
     field_map = fetch_custom_fields(api_url, headers)
+    field_id_to_name = {meta["id"]: name for name, meta in field_map.items()}
+    existing_custom_fields = {
+        field_id_to_name[field["field"]]: field["value"]
+        for field in document_details.get("custom_fields", [])
+        if field["field"] in field_id_to_name
+    }
     field_keys = list(field_map.keys())
     if not field_keys:
         logging.warning("No custom fields found.")
@@ -143,9 +149,11 @@ def main(doc_id):
 
     cleaned_fields = clean_fields(extracted_fields, field_map)
 
+    merged_fields = {**existing_custom_fields, **cleaned_fields}
+
     custom_fields_payload = [
         {"field": field_map[key]["id"], "value": value}
-        for key, value in cleaned_fields.items()
+        for key, value in merged_fields.items()
         if key in field_map
     ]
 

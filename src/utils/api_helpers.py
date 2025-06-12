@@ -12,7 +12,9 @@ def fetch_tags(api_url, headers):
     try:
         response = requests.get(f"{api_url}/api/tags/", headers=headers)
         response.raise_for_status()
-        return {tag["name"]: tag["id"] for tag in response.json().get("results", [])}
+        tags = {tag["name"]: tag["id"] for tag in response.json().get("results", [])}
+        logging.debug(f"Fetched tags: {tags}")
+        return tags
     except Exception as e:
         logging.error(f"Failed to fetch tags: {e}")
         return {}
@@ -22,12 +24,23 @@ def create_tag(api_url, headers, name):
     """
     Creates a new tag with the given name and returns its ID.
     """
+    logging.info(f"Creating new tag: {name}")
+    payload = {"name": name}
+    logging.debug(f"Payload for creating tag: {payload}")
     try:
         response = requests.post(
-            f"{api_url}/api/tags/", headers=headers, json={"name": name}
+            f"{api_url}/api/tags/", headers=headers, json=payload
         )
+        logging.debug(f"Response status code: {response.status_code}")
+        logging.debug(f"Response content: {response.text}")
         response.raise_for_status()
-        return response.json().get("id")
+        tag = response.json()
+        logging.info(f"Tag '{name}' created successfully with ID: {tag['id']}")
+        return tag["id"]
+    except requests.exceptions.HTTPError as e:
+        logging.error(f"HTTP error occurred while creating tag '{name}': {e}")
+        logging.error(f"Response content: {response.text}")
+        return None
     except Exception as e:
         logging.error(f"Failed to create tag '{name}': {e}")
         return None
@@ -40,13 +53,15 @@ def fetch_or_create_tag(api_url, headers, tag_name):
     """
     try:
         tags = fetch_tags(api_url, headers)
-        tag = tags.get(tag_name.lower())
-        if not tag:
+        # Normalize tag names to lowercase and strip whitespace for comparison
+        normalized_tags = {name.lower().strip(): tag_id for name, tag_id in tags.items()}
+        tag_id = normalized_tags.get(tag_name.lower().strip())
+        if not tag_id:
             logging.info(f"Tag '{tag_name}' not found. Creating it.")
-            tag = create_tag(api_url, headers, tag_name)
-            if not tag:
+            tag_id = create_tag(api_url, headers, tag_name)
+            if not tag_id:
                 raise Exception(f"Failed to create tag '{tag_name}'.")
-        return tag
+        return tag_id
     except Exception as e:
         logging.error(f"Failed to fetch or create tag '{tag_name}': {e}")
         raise

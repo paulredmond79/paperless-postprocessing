@@ -82,3 +82,21 @@ def test_analyze_document_with_openai_invalid(mock_create, mock_fetch_or_create_
 
     with pytest.raises(Exception, match="Failed to create tag"):
         analyze_document_with_openai(ocr_data, document_id)
+
+
+@patch("ocr_tax_relief_checker.record_failure")
+@patch("ocr_tax_relief_checker.add_tag_to_document")
+@patch("ocr_tax_relief_checker.fetch_or_create_tag", return_value=1)
+@patch("ocr_tax_relief_checker.client.chat.completions.create")
+def test_analyze_document_with_openai_failure_records_note(
+    mock_create, mock_fetch_or_create_tag, mock_add_tag, mock_record_failure
+):
+    mock_create.return_value = mock_openai_response(valid=False)
+
+    ocr_data = "Sample OCR data"
+    document_id = 123
+
+    result = analyze_document_with_openai(ocr_data, document_id)
+
+    assert result is None
+    mock_record_failure.assert_called_once()

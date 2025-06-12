@@ -70,6 +70,25 @@ def fetch_document_ocr(document_id):
         return None
 
 
+def record_failure(document_id, message):
+    """Add a note and failure tag to a document."""
+    import requests
+
+    try:
+        tag_id = fetch_or_create_tag(paperless_url, headers, "tax-check-failed")
+        add_tag_to_document(paperless_url, headers, document_id, tag_id)
+    except Exception as e:  # pragma: no cover - logging
+        logging.error(f"Failed to tag document {document_id}: {e}")
+
+    try:
+        notes_url = f"{paperless_url}/api/documents/{document_id}/notes/"
+        payload = {"note": f"Tax relief check failed: {message}"}
+        response = requests.post(notes_url, headers=headers, json=payload)
+        response.raise_for_status()
+    except Exception as e:  # pragma: no cover - logging
+        logging.error(f"Failed to add failure note to document {document_id}: {e}")
+
+
 def analyze_document_with_openai(ocr_data, document_id):
     """
     Sends OCR data to OpenAI to determine if it qualifies for tax relief.
@@ -116,6 +135,8 @@ def analyze_document_with_openai(ocr_data, document_id):
                 tag_id = fetch_or_create_tag(paperless_url, headers, "tax-check-failed")
                 add_tag_to_document(paperless_url, headers, document_id, tag_id)
 
+                record_failure(document_id, f"Validation error: {ve.message}")
+
                 return None
 
         except openai.RateLimitError as e:
@@ -133,8 +154,10 @@ def analyze_document_with_openai(ocr_data, document_id):
                 )
                 break
             logging.error(f"OpenAI API error: {e}")
+            record_failure(document_id, str(e))
             break
     logging.error("Failed to analyze document with OpenAI after multiple attempts.")
+    record_failure(document_id, "OpenAI analysis failed")
     return None
 
 
@@ -266,35 +289,43 @@ def main():
 
     document_id = sys.argv[1]
 
-    # Fetch OCR data
-    ocr_data = fetch_document_ocr(document_id)
-    if not ocr_data:
-        logging.error("No OCR data found.")
-        sys.exit(1)
-
-    # Analyze with OpenAI
-    result = analyze_document_with_openai(ocr_data, document_id)
-    if not result:
-        logging.error("Failed to analyze document with OpenAI.")
-        sys.exit(1)
-
-    # Parse JSON response
     try:
-        json_data = json.loads(result)
-    except json.JSONDecodeError as e:
-        logging.error(f"Failed to parse OpenAI response: {e}")
+        # Fetch OCR data
+        ocr_data = fetch_document_ocr(document_id)
+        if not ocr_data:
+            logging.error("No OCR data found.")
+            record_failure(document_id, "No OCR data found")
+            sys.exit(1)
+
+        # Analyze with OpenAI
+        result = analyze_document_with_openai(ocr_data, document_id)
+        if not result:
+            logging.error("Failed to analyze document with OpenAI.")
+            record_failure(document_id, "OpenAI analysis failed")
+            sys.exit(1)
+
+        # Parse JSON response
+        try:
+            json_data = json.loads(result)
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to parse OpenAI response: {e}")
+            record_failure(document_id, f"JSON decode error: {e}")
+            sys.exit(1)
+
+        # Populate field mapping with IDs
+        populate_field_mapping_with_ids(paperless_url, headers, field_mapping)
+
+        # Ensure custom fields exist
+        ensure_custom_fields(paperless_url, headers, field_mapping)
+
+        # Update document with JSON data
+        update_document_with_json(paperless_url, headers, document_id, json_data)
+
+        logging.info("Document updated successfully.")
+    except Exception as e:  # pragma: no cover - catch all failures
+        logging.error(f"Unhandled error: {e}")
+        record_failure(document_id, str(e))
         sys.exit(1)
-
-    # Populate field mapping with IDs
-    populate_field_mapping_with_ids(paperless_url, headers, field_mapping)
-
-    # Ensure custom fields exist
-    ensure_custom_fields(paperless_url, headers, field_mapping)
-
-    # Update document with JSON data
-    update_document_with_json(paperless_url, headers, document_id, json_data)
-
-    logging.info("Document updated successfully.")
 
 
 if __name__ == "__main__":

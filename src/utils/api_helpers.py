@@ -28,9 +28,7 @@ def create_tag(api_url, headers, name):
     payload = {"name": name}
     logging.debug(f"Payload for creating tag: {payload}")
     try:
-        response = requests.post(
-            f"{api_url}/api/tags/", headers=headers, json=payload
-        )
+        response = requests.post(f"{api_url}/api/tags/", headers=headers, json=payload)
         logging.debug(f"Response status code: {response.status_code}")
         logging.debug(f"Response content: {response.text}")
         response.raise_for_status()
@@ -54,7 +52,9 @@ def fetch_or_create_tag(api_url, headers, tag_name):
     try:
         tags = fetch_tags(api_url, headers)
         # Normalize tag names to lowercase and strip whitespace for comparison
-        normalized_tags = {name.lower().strip(): tag_id for name, tag_id in tags.items()}
+        normalized_tags = {
+            name.lower().strip(): tag_id for name, tag_id in tags.items()
+        }
         tag_id = normalized_tags.get(tag_name.lower().strip())
         if not tag_id:
             logging.info(f"Tag '{tag_name}' not found. Creating it.")

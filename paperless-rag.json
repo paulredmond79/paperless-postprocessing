@@ -1,0 +1,795 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RAG System API",
+    "description": "Chat with your documents using Paperless-NGX and vector search",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health Check",
+        "description": "Health check endpoint.",
+        "operationId": "health_check_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingest": {
+      "post": {
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Ingest Documents",
+        "description": "Ingest multiple documents by ID.",
+        "operationId": "ingest_documents_ingest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/ingest/by_id": {
+      "post": {
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Ingest Document By Id",
+        "description": "Ingest a single document by ID.",
+        "operationId": "ingest_document_by_id_ingest_by_id_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestByIdRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/query": {
+      "post": {
+        "tags": [
+          "Query"
+        ],
+        "summary": "Query Documents",
+        "description": "Query documents using hybrid retrieval and generate response.",
+        "operationId": "query_documents_query_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/query/stream": {
+      "post": {
+        "tags": [
+          "Query"
+        ],
+        "summary": "Query Documents Stream",
+        "description": "Query documents with streaming response.",
+        "operationId": "query_documents_stream_query_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/search": {
+      "post": {
+        "tags": [
+          "Search"
+        ],
+        "summary": "Search Documents",
+        "description": "Search documents without AI generation - optimized for Custom GPT integration.",
+        "operationId": "search_documents_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Citation": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id",
+            "description": "Document ID from Paperless-NGX"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Document title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "URL to document in Paperless-NGX"
+          },
+          "chunk_id": {
+            "type": "string",
+            "title": "Chunk Id",
+            "description": "Unique chunk identifier"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Score",
+            "description": "Relevance score"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "Page number if applicable"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section",
+            "description": "Section or heading if applicable"
+          },
+          "snippet": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Snippet",
+            "description": "Relevant text snippet"
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_id",
+          "title",
+          "chunk_id",
+          "score",
+          "snippet"
+        ],
+        "title": "Citation",
+        "description": "Citation model for document references."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "healthy"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp"
+        ],
+        "title": "HealthResponse",
+        "description": "Health check response model."
+      },
+      "IngestByIdRequest": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id",
+            "description": "Document ID to ingest"
+          },
+          "force_refresh": {
+            "type": "boolean",
+            "title": "Force Refresh",
+            "description": "Force re-ingestion if document exists",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_id"
+        ],
+        "title": "IngestByIdRequest",
+        "description": "Single document ingestion request model."
+      },
+      "IngestRequest": {
+        "properties": {
+          "doc_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Doc Ids",
+            "description": "List of document IDs to ingest"
+          },
+          "force_refresh": {
+            "type": "boolean",
+            "title": "Force Refresh",
+            "description": "Force re-ingestion of existing documents",
+            "default": false
+          },
+          "batch_size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100,
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Size",
+            "description": "Batch size for processing",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_ids"
+        ],
+        "title": "IngestRequest",
+        "description": "Document ingestion request model."
+      },
+      "IngestResponse": {
+        "properties": {
+          "processed_docs": {
+            "type": "integer",
+            "title": "Processed Docs",
+            "description": "Number of documents processed"
+          },
+          "new_chunks": {
+            "type": "integer",
+            "title": "New Chunks",
+            "description": "Number of new chunks created"
+          },
+          "updated_chunks": {
+            "type": "integer",
+            "title": "Updated Chunks",
+            "description": "Number of updated chunks"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors",
+            "description": "List of errors encountered"
+          },
+          "processing_time_ms": {
+            "type": "number",
+            "title": "Processing Time Ms",
+            "description": "Total processing time in milliseconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "processed_docs",
+          "new_chunks",
+          "updated_chunks",
+          "processing_time_ms"
+        ],
+        "title": "IngestResponse",
+        "description": "Document ingestion response model."
+      },
+      "QueryRequest": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Question",
+            "description": "User question"
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters",
+            "description": "Optional filters for document search"
+          },
+          "max_results": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20,
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Results",
+            "description": "Maximum number of results",
+            "default": 6
+          },
+          "include_citations": {
+            "type": "boolean",
+            "title": "Include Citations",
+            "description": "Whether to include citations",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "QueryRequest",
+        "description": "Query request model."
+      },
+      "QueryResponse": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer",
+            "description": "Generated answer"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "type": "array",
+            "title": "Citations",
+            "description": "Source citations"
+          },
+          "processing_time_ms": {
+            "type": "number",
+            "title": "Processing Time Ms",
+            "description": "Total processing time in milliseconds"
+          },
+          "retrieval_time_ms": {
+            "type": "number",
+            "title": "Retrieval Time Ms",
+            "description": "Retrieval time in milliseconds"
+          },
+          "generation_time_ms": {
+            "type": "number",
+            "title": "Generation Time Ms",
+            "description": "Answer generation time in milliseconds"
+          },
+          "chunks_retrieved": {
+            "type": "integer",
+            "title": "Chunks Retrieved",
+            "description": "Number of chunks retrieved"
+          },
+          "tokens_used": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens Used",
+            "description": "Total tokens used for generation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer",
+          "processing_time_ms",
+          "retrieval_time_ms",
+          "generation_time_ms",
+          "chunks_retrieved"
+        ],
+        "title": "QueryResponse",
+        "description": "Query response model."
+      },
+      "SearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query"
+          },
+          "max_results": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20,
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Results",
+            "description": "Maximum number of results",
+            "default": 6
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters",
+            "description": "Optional filters for document search"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SearchRequest",
+        "description": "Search request model for Custom GPT integration."
+      },
+      "SearchResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "Search results"
+          },
+          "total_results": {
+            "type": "integer",
+            "title": "Total Results",
+            "description": "Total number of results found"
+          },
+          "search_time_ms": {
+            "type": "number",
+            "title": "Search Time Ms",
+            "description": "Search processing time in milliseconds"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query",
+            "description": "Original search query"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results",
+          "total_results",
+          "search_time_ms",
+          "query"
+        ],
+        "title": "SearchResponse",
+        "description": "Search response model for Custom GPT integration."
+      },
+      "SearchResult": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id",
+            "description": "Document ID from Paperless-NGX"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Document title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "URL to document in Paperless-NGX"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "description": "Relevant text snippet"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Score",
+            "description": "Relevance score"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "Page number if applicable"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section",
+            "description": "Section or heading if applicable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_id",
+          "title",
+          "snippet",
+          "score"
+        ],
+        "title": "SearchResult",
+        "description": "Individual search result for Custom GPT."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  }
+}

@@ -11,6 +11,12 @@ from postprocessing.ai import AIError
 # and one over-long value makes it reject the whole update.
 MAX_TEXT_LENGTH = 128
 
+# Paperless stores monetary values with at most 12 digits, two of them
+# decimals, and integer fields as 32-bit signed numbers. A value outside
+# these limits rejects the whole PATCH.
+MAX_MONETARY = 10**10
+MIN_INTEGER, MAX_INTEGER = -(2**31), 2**31 - 1
+
 # Long documents are cut to this length before they're sent to OpenAI
 MAX_OCR_CHARS = 20000
 
@@ -204,12 +210,17 @@ def clean_fields(fields, definitions):
             if data_type == "date":
                 value = parse_date(text)
             elif data_type == "monetary":
-                value = f"{to_number(value):.2f}"
+                amount = round(to_number(value), 2)
+                if abs(amount) >= MAX_MONETARY:
+                    raise ValueError("amount too large for Paperless")
+                value = f"{amount:.2f}"
             elif data_type == "float":
                 value = float(to_number(value))
             elif data_type == "integer":
                 number = to_number(value)
                 value = number if isinstance(number, int) else int(round(number))
+                if not MIN_INTEGER <= value <= MAX_INTEGER:
+                    raise ValueError("integer out of range for Paperless")
             elif data_type == "boolean":
                 lowered = text.lower()
                 if lowered in ("true", "yes", "1"):
@@ -325,6 +336,10 @@ def apply_metadata(paperless, ai, document):
         logging.warning(f"Document {doc_id}: no title returned; keeping the title.")
     cleaned = clean_fields(fields, definitions)
 
+    if cleaned:
+        # The replacement field list must start from the latest values, so
+        # edits made while the steps ran aren't undone
+        document = paperless.get_document(doc_id)
     changes = build_update(document, title, cleaned, definitions)
     if changes:
         paperless.update_document(doc_id, changes)

@@ -217,15 +217,55 @@ def test_clean_fields_keeps_native_json_numbers():
         "total": {"data_type": "monetary"},
         "big": {"data_type": "monetary"},
     }
-    fields = {"score": 0.00001, "count": 12345678901234567891, "total": 1291.8}
-    fields["big"] = 1e20
+    fields = {"score": 0.00001, "count": 2**31 - 1, "total": 1291.8}
+    fields["big"] = 9999999999.99
 
     cleaned = clean_fields(fields, definitions)
 
     assert cleaned["score"] == 0.00001
-    assert cleaned["count"] == 12345678901234567891  # no float rounding
+    assert cleaned["count"] == 2147483647
     assert cleaned["total"] == "1291.80"
-    assert cleaned["big"] == "100000000000000000000.00"
+    assert cleaned["big"] == "9999999999.99"
+
+
+@pytest.mark.parametrize(
+    "key, value",
+    [
+        ("total", 1e10),
+        ("total", -1e20),
+        ("count", 2**31),
+        ("count", -(2**31) - 1),
+        ("count", 12345678901234567891),
+    ],
+)
+def test_clean_fields_skips_values_beyond_paperless_limits(key, value):
+    definitions = {
+        "total": {"data_type": "monetary"},
+        "count": {"data_type": "integer"},
+    }
+
+    assert clean_fields({key: value}, definitions) == {}
+
+
+def test_clean_fields_accepts_lowest_integer():
+    definitions = {"count": {"data_type": "integer"}}
+
+    assert clean_fields({"count": -(2**31)}, definitions) == {"count": -(2**31)}
+
+
+def test_apply_metadata_merges_with_fields_changed_during_the_call(document):
+    paperless = FakePaperless(documents=[document], fields=FIELDS)
+    # Someone sets a field after the pipeline fetched the document
+    paperless.documents[296]["custom_fields"] = [{"field": 9, "value": "new"}]
+    ai = FakeAI({"title": "ESB bill", "fields": {"company_name": "ESB"}})
+
+    apply_metadata(paperless, ai, document)
+
+    _, changes = paperless.updates[-1]
+    assert {cf["field"]: cf["value"] for cf in changes["custom_fields"]} == {
+        1: "ESB",
+        9: "new",
+    }
 
 
 @pytest.mark.parametrize("value", [True, float("nan"), float("inf")])

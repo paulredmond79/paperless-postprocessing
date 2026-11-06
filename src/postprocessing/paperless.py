@@ -178,9 +178,12 @@ class PaperlessClient:
         existing = fetch_by_name().get(name.strip().lower())
         if existing:
             return existing
-        logging.info(f"Creating {path.rstrip('/')[:-1]} '{name}'.")
+        kind = path.rstrip("/")[:-1]
         try:
-            return self.request("POST", path, json={"name": name})
+            created = self.request("POST", path, json={"name": name})
+            # Not the name: a correspondent's name can be a person's
+            logging.info(f"Created {kind} {created['id']}.")
+            return created
         except PaperlessError:
             # Another process may have created it a moment ago
             existing = fetch_by_name().get(name.strip().lower())

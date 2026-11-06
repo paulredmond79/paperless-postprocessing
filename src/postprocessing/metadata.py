@@ -163,6 +163,22 @@ def parse_amount(value):
     return float(number)
 
 
+def to_number(value):
+    """
+    Returns a reply value as a number.
+
+    JSON numbers from the strict schema are used as they are; only text
+    goes through ``parse_amount``. Raises ValueError for anything else.
+    """
+    if isinstance(value, bool):
+        raise ValueError("a yes/no value isn't a number")
+    if isinstance(value, (int, float)):
+        if value != value or value in (float("inf"), float("-inf")):
+            raise ValueError("not a finite number")
+        return value
+    return parse_amount(str(value))
+
+
 def clean_fields(fields, definitions):
     """
     Converts extracted values to what each Paperless custom field type
@@ -188,11 +204,12 @@ def clean_fields(fields, definitions):
             if data_type == "date":
                 value = parse_date(text)
             elif data_type == "monetary":
-                value = str(round(parse_amount(text), 2))
+                value = f"{to_number(value):.2f}"
             elif data_type == "float":
-                value = float(parse_amount(text))
+                value = float(to_number(value))
             elif data_type == "integer":
-                value = int(round(parse_amount(text)))
+                number = to_number(value)
+                value = number if isinstance(number, int) else int(round(number))
             elif data_type == "boolean":
                 lowered = text.lower()
                 if lowered in ("true", "yes", "1"):
@@ -214,9 +231,9 @@ def clean_fields(fields, definitions):
                     f"Skipping '{key}': {data_type} fields aren't supported."
                 )
                 continue
-        except ValueError as e:
-            # Don't log the value itself: it comes from the document
-            logging.warning(f"Skipping '{key}': {e} for a {data_type} field.")
+        except (ValueError, OverflowError):
+            # Not the exception text: it can quote the value from the document
+            logging.warning(f"Skipping '{key}': not a valid {data_type} value.")
             continue
 
         cleaned[key] = value

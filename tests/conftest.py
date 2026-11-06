@@ -51,7 +51,10 @@ class FakePaperless:
         self.documents[doc_id].update(changes)
 
     def add_tags(self, doc_id, new_tag_ids, current_tag_ids=None):
-        current = tag_ids(self.documents[doc_id])
+        if current_tag_ids is None:
+            current = tag_ids(self.documents[doc_id])
+        else:
+            current = set(current_tag_ids)
         wanted = current | set(new_tag_ids)
         if wanted != current:
             self.update_document(doc_id, {"tags": sorted(wanted)})

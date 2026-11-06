@@ -23,6 +23,17 @@ from postprocessing.correspondent import PROCESSED_TAG
 from postprocessing.pipeline import process_document
 
 
+def non_negative_int(text):
+    """argparse type for a whole number that is 0 or more."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a whole number: {text!r}")
+    if value < 0:
+        raise argparse.ArgumentTypeError("must be 0 or more")
+    return value
+
+
 def parse_args(argv=None):
     """Parses the command line."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0].strip())
@@ -31,7 +42,9 @@ def parse_args(argv=None):
         action="store_true",
         help="also generate titles and fill custom fields",
     )
-    parser.add_argument("--limit", type=int, help="process at most this many documents")
+    parser.add_argument(
+        "--limit", type=non_negative_int, help="process at most this many documents"
+    )
     return parser.parse_args(argv)
 
 

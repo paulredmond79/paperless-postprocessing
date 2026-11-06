@@ -116,6 +116,16 @@ def test_batch_limit(monkeypatch):
     assert ai.replies == []
 
 
+@pytest.mark.parametrize("limit", ["-1", "two"])
+def test_batch_rejects_bad_limit_before_doing_anything(monkeypatch, limit):
+    paperless = FakePaperless(documents=make_docs())
+    use_fakes(monkeypatch, postprocess_all, paperless, FakeAI())
+
+    with pytest.raises(SystemExit):
+        postprocess_all.main(["--limit", limit])
+    assert paperless.updates == []
+
+
 # cleanup_correspondents.py
 
 
@@ -134,6 +144,17 @@ def test_cleanup_reports_by_default(monkeypatch):
 
     assert cleanup_correspondents.main([]) == cli.EXIT_OK
     assert paperless.correspondents[1]["name"].startswith("{")
+
+
+def test_cleanup_doesnt_log_the_extracted_name(monkeypatch, caplog):
+    caplog.set_level("DEBUG")
+    paperless = json_named_paperless()
+    use_fakes(monkeypatch, cleanup_correspondents, paperless)
+
+    cleanup_correspondents.main([])
+
+    assert "correspondent 1" in caplog.text
+    assert "ESB Networks" not in caplog.text
 
 
 def test_cleanup_apply_renames(monkeypatch):

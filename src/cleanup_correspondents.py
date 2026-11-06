@@ -52,7 +52,11 @@ def main(argv=None):
 
     for correspondent, new_name in renames:
         action = "Renaming" if args.apply else "Would rename"
-        logging.info(f"{action} correspondent {correspondent['id']} to '{new_name}'.")
+        # The new name comes from a model reply, so log only its length
+        logging.info(
+            f"{action} correspondent {correspondent['id']} "
+            f"(new name: {len(new_name)} characters)."
+        )
         if args.apply:
             paperless.update_correspondent(correspondent["id"], {"name": new_name})
 

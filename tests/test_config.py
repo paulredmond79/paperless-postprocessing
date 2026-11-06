@@ -66,10 +66,13 @@ def test_load_env_disabled(tmp_path):
 
 @pytest.fixture
 def restore_root_level():
-    root = logging.getLogger()
-    level = root.level
+    loggers = [logging.getLogger()] + [
+        logging.getLogger(name) for name in config.QUIET_LOGGERS
+    ]
+    levels = [logger.level for logger in loggers]
     yield
-    root.setLevel(level)
+    for logger, level in zip(loggers, levels):
+        logger.setLevel(level)
 
 
 def test_logging_defaults_to_info(monkeypatch, restore_root_level):
@@ -82,6 +85,19 @@ def test_logging_level_override(monkeypatch, restore_root_level):
     monkeypatch.setenv("LOG_LEVEL", " debug ")
 
     assert config.configure_logging() == logging.DEBUG
+
+
+def test_debug_logging_keeps_openai_and_http_libraries_quiet(
+    monkeypatch, restore_root_level
+):
+    # The OpenAI SDK logs request options, including the prompt, at DEBUG
+    monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+
+    config.configure_logging()
+
+    for name in config.QUIET_LOGGERS:
+        assert not logging.getLogger(name).isEnabledFor(logging.DEBUG)
+        assert not logging.getLogger(name).isEnabledFor(logging.INFO)
 
 
 def test_unknown_logging_level_falls_back_to_info(monkeypatch, restore_root_level):

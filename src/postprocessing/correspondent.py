@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Optional
 
 from postprocessing.ai import AIError
-from postprocessing.paperless import tag_ids
 
 PROCESSED_TAG = "gpt-correspondent"
 UNDETERMINED_TAG = "gpt-correspondent-unable-to-determine"
@@ -117,7 +116,6 @@ def detect_correspondent(paperless, ai, document):
     ``gpt-correspondent-unable-to-determine`` instead.
     """
     doc_id = document["id"]
-    current_tags = tag_ids(document)
     correspondents = paperless.correspondents_by_name()
     names = [c["name"] for c in correspondents.values()]
 
@@ -126,7 +124,7 @@ def detect_correspondent(paperless, ai, document):
     if name is None:
         logging.warning(f"Document {doc_id}: couldn't determine a correspondent.")
         tag = paperless.get_or_create_tag(UNDETERMINED_TAG)
-        paperless.add_tags(doc_id, [tag["id"]], current_tags)
+        paperless.add_tags(doc_id, [tag["id"]])
         return CorrespondentResult("undetermined")
 
     correspondent = correspondents.get(
@@ -136,16 +134,14 @@ def detect_correspondent(paperless, ai, document):
     if document.get("correspondent") == correspondent["id"]:
         status = "unchanged"
         logging.info(
-            f"Document {doc_id}: correspondent is already '{correspondent['name']}'."
+            f"Document {doc_id}: correspondent is already {correspondent['id']}."
         )
     else:
         status = "assigned"
         paperless.update_document(doc_id, {"correspondent": correspondent["id"]})
-        logging.info(
-            f"Document {doc_id}: correspondent set to '{correspondent['name']}'."
-        )
+        logging.info(f"Document {doc_id}: correspondent set to {correspondent['id']}.")
 
     # Tag every document the AI has checked, so batch runs skip it next time
     tag = paperless.get_or_create_tag(PROCESSED_TAG)
-    paperless.add_tags(doc_id, [tag["id"]], current_tags)
+    paperless.add_tags(doc_id, [tag["id"]])
     return CorrespondentResult(status, correspondent["name"])

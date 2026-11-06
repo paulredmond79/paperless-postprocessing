@@ -120,3 +120,15 @@ def test_choose_correspondent_sends_the_reply_schema():
     choose_correspondent(ai, "text", ["ESB"])
 
     assert ai.schemas == [REPLY_SCHEMA]
+
+
+def test_tags_added_during_processing_are_kept(document):
+    paperless = paperless_with(document)
+    paperless.tags[7] = {"id": 7, "name": "Workflow"}
+    # A workflow tags the document after the step fetched it
+    paperless.documents[296]["tags"] = [1, 7]
+    ai = FakeAI({"status": "suggest_new", "correspondent": "ESB Networks"})
+
+    detect_correspondent(paperless, ai, document)
+
+    assert tag_names(paperless, 296) == {"Inbox", "Workflow", PROCESSED_TAG}

@@ -17,6 +17,9 @@ DEFAULT_MODEL = "gpt-6-luna"
 DEFAULT_REASONING_EFFORT = "none"
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 
+# These libraries log request bodies (which contain OCR text) at DEBUG
+QUIET_LOGGERS = ("openai", "httpx", "httpcore", "urllib3")
+
 
 class ConfigError(Exception):
     """A required setting is missing."""
@@ -56,7 +59,9 @@ def configure_logging():
 
     Set ``LOG_LEVEL`` (DEBUG, INFO, WARNING or ERROR) to change it. An
     unknown value falls back to INFO. Call this after ``load_env()`` so a
-    ``LOG_LEVEL`` in ``.env`` applies. Returns the level used.
+    ``LOG_LEVEL`` in ``.env`` applies. The OpenAI and HTTP libraries stay
+    at WARNING or above, because their debug output includes prompts.
+    Returns the level used.
     """
     name = (os.getenv("LOG_LEVEL") or "INFO").strip().upper()
     level = logging.getLevelName(name)
@@ -65,6 +70,8 @@ def configure_logging():
 
     logging.basicConfig(level=level, format=LOG_FORMAT)
     logging.getLogger().setLevel(level)
+    for name in QUIET_LOGGERS:
+        logging.getLogger(name).setLevel(max(level, logging.WARNING))
     return level
 
 

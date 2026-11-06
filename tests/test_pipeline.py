@@ -58,8 +58,10 @@ def test_fetch_failure_returns_false():
 def test_document_text_is_never_logged(document, caplog):
     caplog.set_level("DEBUG")
     paperless = FakePaperless(documents=[document], fields=FIELDS)
+    # A sender can be a person, so the chosen name counts as document data
+    sender = "Dr Siobhan Secretname"
     ai = FakeAI(
-        {"status": "suggest_new", "correspondent": "ESB Networks"},
+        {"status": "suggest_new", "correspondent": sender},
         {"title": "ESB bill", "fields": {"company_name": SECRET}},
     )
 
@@ -67,3 +69,4 @@ def test_document_text_is_never_logged(document, caplog):
 
     assert SECRET in ai.prompts[0]  # sent to OpenAI
     assert SECRET not in caplog.text  # but never logged
+    assert sender not in caplog.text

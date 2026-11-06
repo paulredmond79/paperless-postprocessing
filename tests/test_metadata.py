@@ -84,6 +84,7 @@ def test_clean_fields_skips_unparseable_values_without_logging_them(caplog):
 
     assert cleaned == {}
     assert "Immediately" not in caplog.text
+    assert "overleaf" not in caplog.text
 
 
 def test_truncate_text_leaves_short_text():
@@ -207,3 +208,31 @@ def test_apply_metadata_rejects_bad_fields_shape(document):
 def test_system_message_lists_the_household_properties():
     for name in ("Sycamore Close", "Parkwest", "Caiseal Cam"):
         assert name in SYSTEM_MESSAGE.replace(" \\n", " ").replace("\n", " ")
+
+
+def test_clean_fields_keeps_native_json_numbers():
+    definitions = {
+        "score": {"data_type": "float"},
+        "count": {"data_type": "integer"},
+        "total": {"data_type": "monetary"},
+        "big": {"data_type": "monetary"},
+    }
+    fields = {"score": 0.00001, "count": 12345678901234567891, "total": 1291.8}
+    fields["big"] = 1e20
+
+    cleaned = clean_fields(fields, definitions)
+
+    assert cleaned["score"] == 0.00001
+    assert cleaned["count"] == 12345678901234567891  # no float rounding
+    assert cleaned["total"] == "1291.80"
+    assert cleaned["big"] == "100000000000000000000.00"
+
+
+@pytest.mark.parametrize("value", [True, float("nan"), float("inf")])
+def test_clean_fields_rejects_non_numbers_for_number_fields(value):
+    definitions = {
+        "total": {"data_type": "monetary"},
+        "count": {"data_type": "integer"},
+    }
+
+    assert clean_fields({"total": value, "count": value}, definitions) == {}

@@ -1,117 +1,70 @@
 #!/usr/bin/env python3
+"""
+Runs post-processing on every document that hasn't been through it yet.
+
+"Not yet processed" means the document lacks the ``gpt-correspondent`` tag.
+By default only the correspondent step runs; pass ``--with-metadata`` to
+also regenerate titles and custom fields. Each document costs one or two
+paid OpenAI calls, so try ``--limit`` first.
+
+A failing document is logged and the batch carries on. Exits 1 at the end
+if any document failed.
+
+Usage:
+    postprocess_all.py [--with-metadata] [--limit N]
+"""
+
+import argparse
 import logging
-import os
 import sys
 
-import requests
-
-from postprocess import fetch_tags
-from postprocess import main as process_document
-
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
-# Global variables for API configuration
-paperless_url = os.getenv("PAPERLESS_URL", "http://localhost:8000")
-paperless_token = os.getenv("PAPERLESS_API_TOKEN")
-
-headers = {
-    "Authorization": f"Token {paperless_token}",
-    "Content-Type": "application/json",
-}
+from postprocessing.cli import EXIT_FAILED, EXIT_OK, build_clients, run
+from postprocessing.correspondent import PROCESSED_TAG
+from postprocessing.pipeline import process_document
 
 
-def fetch_all_documents():
-    """
-    Fetches all documents from Paperless-ngx.
-    """
-    logging.info("Fetching all documents from Paperless-ngx.")
-    documents = []
-    next_url = f"{paperless_url}/api/documents/"
-
-    while next_url:
-        response = requests.get(next_url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        documents.extend(data.get("results", []))
-        next_url = data.get("next")
-
-    logging.info(f"Fetched {len(documents)} documents.")
-    return documents
-
-
-def main():
-    """
-    Runs post-processing on every document without the 'gpt-correspondent' tag.
-
-    A failure on one document is logged and the batch moves on. Exits with
-    status 1 at the end if any document failed.
-    """
-    logging.info(
-        "Starting post-processing for all documents without the 'gpt-correspondent' tag."
+def parse_args(argv=None):
+    """Parses the command line."""
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0].strip())
+    parser.add_argument(
+        "--with-metadata",
+        action="store_true",
+        help="also generate titles and fill custom fields",
     )
+    parser.add_argument("--limit", type=int, help="process at most this many documents")
+    return parser.parse_args(argv)
 
-    # Fetch all documents
-    documents = fetch_all_documents()
 
-    # Fetch existing tags
-    tags = fetch_tags()
-    gpt_tag = tags.get("gpt-correspondent")
+def unprocessed_document_ids(paperless):
+    """Returns the IDs of documents without the gpt-correspondent tag."""
+    tag = paperless.tags_by_name().get(PROCESSED_TAG)
+    params = {"tags__id__none": tag["id"]} if tag else {}
+    return [doc["id"] for doc in paperless.list_documents(params)]
 
-    if not gpt_tag:
-        logging.error(
-            "The 'gpt-correspondent' tag does not exist. Please create it first."
-        )
-        sys.exit(1)
 
-    gpt_tag_id = gpt_tag["id"]
+def main(argv=None):
+    """Processes every unprocessed document and returns an exit code."""
+    args = parse_args(argv)
+    paperless, ai = build_clients()
+    steps = ["correspondent", "metadata"] if args.with_metadata else ["correspondent"]
 
-    # Process each document
-    failed_ids = []
-    for document in documents:
-        document_id = document["id"]
+    doc_ids = unprocessed_document_ids(paperless)
+    if args.limit is not None:
+        doc_ids = doc_ids[: args.limit]
+    logging.info(f"Processing {len(doc_ids)} document(s): {', '.join(steps)}.")
 
-        # Process tags to handle both integers and dictionaries
-        document_tag_ids = set()
-        for tag in document.get("tags", []):
-            if isinstance(tag, dict):
-                tag_id = tag.get("id")
-                if tag_id is not None:
-                    document_tag_ids.add(tag_id)
-            elif isinstance(tag, int):
-                document_tag_ids.add(tag)
+    failed = [
+        doc_id
+        for doc_id in doc_ids
+        if not process_document(paperless, ai, doc_id, steps)
+    ]
 
-        # Skip documents that already have the 'gpt-correspondent' tag
-        if gpt_tag_id in document_tag_ids:
-            logging.info(
-                f"Skipping document ID {document_id} as it already has the 'gpt-correspondent' tag."
-            )
-            continue
-
-        # Process the document
-        logging.info(f"Processing document ID {document_id}.")
-        try:
-            process_document(document_id)
-        except SystemExit as e:
-            # postprocess.main calls sys.exit on errors; exit code 0 is a skip
-            if e.code not in (None, 0):
-                logging.error(f"Document ID {document_id} failed (exit {e.code}).")
-                failed_ids.append(document_id)
-        except Exception as e:
-            logging.error(f"Document ID {document_id} failed: {e}")
-            failed_ids.append(document_id)
-
-    if failed_ids:
-        logging.error(
-            f"Post-processing finished with {len(failed_ids)} failed "
-            f"document(s): {failed_ids}"
-        )
-        sys.exit(1)
-
-    logging.info("Post-processing completed for all documents.")
+    if failed:
+        logging.error(f"{len(failed)} document(s) failed: {failed}")
+        return EXIT_FAILED
+    logging.info("All documents processed.")
+    return EXIT_OK
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(run(main))

@@ -49,6 +49,14 @@ htmlcov/
 venv/
 .venv/
 
+# Local data exports (contain document data)
+backups/
+
+# Local settings and secrets (copy .env.example to .env)
+.env
+.env.*
+!.env.example
+
 # Ignore IDE specific files
 .idea/
 *.iml

@@ -1,87 +1,66 @@
 #!/usr/bin/env python3
+"""
+Renames correspondents whose name is a leaked JSON reply.
+
+An old bug saved replies such as ``{"correspondent": "ESB Networks"}`` as
+the correspondent's name. This script renames each one to the name inside
+the JSON. It reports what it would change unless you pass ``--apply``.
+
+Usage:
+    cleanup_correspondents.py [--apply]
+"""
+
+import argparse
 import json
 import logging
-import os
+import sys
 
-import requests
-
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
-# Global variables for API configuration
-paperless_url = os.getenv("PAPERLESS_URL", "http://localhost:8000")
-paperless_token = os.getenv("PAPERLESS_API_TOKEN")
-
-headers = {
-    "Authorization": f"Token {paperless_token}",
-    "Content-Type": "application/json",
-}
+from postprocessing.cli import EXIT_OK, build_clients, run
 
 
-def fetch_all_correspondents():
-    """
-    Fetches all correspondents from Paperless-ngx.
-    """
-    logging.info("Fetching all correspondents from Paperless-ngx.")
-    correspondents = []
-    next_url = f"{paperless_url}/api/correspondents/?page_size=100"
-
-    while next_url:
-        response = requests.get(next_url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        correspondents.extend(data.get("results", []))
-        next_url = data.get("next")
-
-    logging.info(f"Fetched {len(correspondents)} correspondents.")
-    return correspondents
-
-
-def update_correspondent(correspondent_id, new_name):
-    """
-    Updates the name of a correspondent.
-    """
-    logging.info(
-        f"Updating correspondent ID {correspondent_id} with new name: {new_name}."
+def parse_args(argv=None):
+    """Parses the command line."""
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0].strip())
+    parser.add_argument(
+        "--apply", action="store_true", help="rename them (default: report only)"
     )
-    url = f"{paperless_url}/api/correspondents/{correspondent_id}/"
-    payload = {"name": new_name}
-    response = requests.patch(url, headers=headers, json=payload)
-    response.raise_for_status()
-    logging.info(f"Correspondent ID {correspondent_id} updated successfully.")
+    return parser.parse_args(argv)
 
 
-def main():
-    logging.info("Starting correspondent JSON name cleanup.")
+def name_from_json(name):
+    """Returns the real name inside a JSON-blob name, or None."""
+    try:
+        data = json.loads(name)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if isinstance(data, dict):
+        real_name = str(data.get("correspondent") or "").strip()
+        return real_name or None
+    return None
 
-    # Fetch all correspondents
-    correspondents = fetch_all_correspondents()
 
-    for correspondent in correspondents:
-        correspondent_id = correspondent["id"]
-        correspondent_name = correspondent["name"]
+def main(argv=None):
+    """Finds JSON-blob correspondent names and renames them."""
+    args = parse_args(argv)
+    paperless, _ = build_clients(require_openai=False)
 
-        # Check if the name is a JSON string
-        try:
-            name_data = json.loads(correspondent_name)
-            if isinstance(name_data, dict) and "correspondent" in name_data:
-                new_name = name_data["correspondent"]
-                logging.info(
-                    f"Found JSON name for correspondent ID {correspondent_id}. Extracted name: {new_name}."
-                )
+    renames = []
+    for correspondent in paperless.list_all("correspondents/"):
+        new_name = name_from_json(correspondent["name"])
+        if new_name:
+            renames.append((correspondent, new_name))
 
-                # Update the correspondent with the extracted name
-                update_correspondent(correspondent_id, new_name)
-        except json.JSONDecodeError:
-            # Name is not JSON, skip
-            logging.debug(
-                f"Correspondent ID {correspondent_id} has a plain text name. Skipping."
-            )
+    for correspondent, new_name in renames:
+        action = "Renaming" if args.apply else "Would rename"
+        logging.info(f"{action} correspondent {correspondent['id']} to '{new_name}'.")
+        if args.apply:
+            paperless.update_correspondent(correspondent["id"], {"name": new_name})
 
-    logging.info("Correspondent JSON name cleanup completed.")
+    if renames and not args.apply:
+        logging.info("Nothing changed. Run again with --apply to rename them.")
+    logging.info(f"Found {len(renames)} correspondent(s) with JSON names.")
+    return EXIT_OK
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(run(main))

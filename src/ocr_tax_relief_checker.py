@@ -113,7 +113,7 @@ def analyze_document_with_openai(ocr_data, document_id):
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
-                model="gpt-4",
+                model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt + ocr_data},

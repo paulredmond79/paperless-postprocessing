@@ -93,7 +93,7 @@ def generate_metadata_with_openai(content, field_keys):
 
     try:
         ai_response = client.chat.completions.create(
-            model="gpt-4",
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
             messages=[
                 {
                     "role": "system",

@@ -62,6 +62,7 @@ paperless-postprocessing
    PAPERLESS_URL=<your-paperless-url>
    PAPERLESS_API_TOKEN=<your-paperless-api-token>
    OPENAI_API_KEY=<your-openai-api-key>
+   OPENAI_MODEL=gpt-4.1  # optional; chat model used for all OpenAI calls
    ```
 
 ## Usage

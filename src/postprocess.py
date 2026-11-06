@@ -200,7 +200,7 @@ def determine_correspondent_with_openai(ocr_data, correspondents):
     logging.debug(f"OpenAI prompt: {prompt}")
     try:
         ai_response = client.chat.completions.create(
-            model="gpt-4",
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
             messages=[
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": prompt},

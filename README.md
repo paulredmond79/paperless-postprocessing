@@ -32,9 +32,17 @@ paperless-postprocessing
 │   ├── postprocess_all.py       # Processes all documents without a specific tag
 │   ├── cleanup_correspondents.py # Cleans up correspondents with JSON names
 │   ├── merge_duplicates.py      # Merges duplicate correspondents
+│   ├── ocr_tax_relief_checker.py # Checks documents for Irish tax relief eligibility
+│   ├── ingest_document.py       # Sends a document to the RAG service
+│   ├── tax_relief_prompts.json  # Prompts for the tax relief checker
+│   ├── tax_relief_schema.json   # JSON schema the tax relief response must match
+│   ├── field_mapping.json       # Custom fields the tax relief checker writes
 │   └── utils
 │       ├── api_helpers.py       # Helper functions for interacting with the Paperless API
 │       └── __init__.py          # Marks the utils directory as a Python package
+├── tests                        # pytest suite (all network calls mocked)
+├── paperless-rag.json           # OpenAPI spec of the RAG service
+├── AGENTS.md / CLAUDE.md        # Instructions for AI coding agents
 ├── requirements.txt             # Lists project dependencies
 ├── README.md                    # Documentation for the project
 └── .gitignore                   # Excludes unnecessary files from version control
@@ -57,7 +65,7 @@ paperless-postprocessing
    ```
 
 3. **Set Environment Variables**
-   Create a `.env` file or export the following environment variables:
+   Export the following environment variables (the scripts don't load a `.env` file themselves):
    ```bash
    PAPERLESS_URL=<your-paperless-url>
    PAPERLESS_API_TOKEN=<your-paperless-api-token>
@@ -73,6 +81,22 @@ Run the `post.py` script with the document ID:
 python src/post.py <document_id>
 ```
 
+### Determine a Document's Correspondent
+```bash
+python src/postprocess.py <document_id>
+```
+
+### Check a Document for Tax Relief
+```bash
+python src/ocr_tax_relief_checker.py <document_id>
+```
+
+### Ingest a Document into the RAG Service
+Uses `RAG_API_URL` (default `http://localhost:8000`) and optionally `RAG_API_KEY`:
+```bash
+python src/ingest_document.py <document_id> [--force-refresh]
+```
+
 ### Process All Documents
 Run the `postprocess_all.py` script to process all documents without a specific tag:
 ```bash
@@ -86,7 +110,7 @@ python src/cleanup_correspondents.py
 ```
 
 ### Merge Duplicate Correspondents
-Run the `merge_duplicates.py` script to merge duplicate correspondents:
+Run the `merge_duplicates.py` script to merge duplicate correspondents. This **deletes** the duplicate correspondents:
 ```bash
 python src/merge_duplicates.py
 ```

@@ -4,15 +4,35 @@ import re
 import requests
 
 
+# Pagination
+def fetch_all_results(url, headers):
+    """
+    Fetches every page of a paginated Paperless list endpoint.
+
+    Follows the ``next`` link until it is empty and returns the combined
+    ``results`` list. Raises on HTTP errors.
+    """
+    results = []
+    seen = set()
+    next_url = url
+    while isinstance(next_url, str) and next_url and next_url not in seen:
+        seen.add(next_url)
+        response = requests.get(next_url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        results.extend(data.get("results", []))
+        next_url = data.get("next")
+    return results
+
+
 # Tag Management Functions
 def fetch_tags(api_url, headers):
     """
     Fetches all tags from the API and returns a dictionary of tag names to their IDs.
     """
     try:
-        response = requests.get(f"{api_url}/api/tags/", headers=headers)
-        response.raise_for_status()
-        tags = {tag["name"]: tag["id"] for tag in response.json().get("results", [])}
+        results = fetch_all_results(f"{api_url}/api/tags/", headers)
+        tags = {tag["name"]: tag["id"] for tag in results}
         logging.debug(f"Fetched tags: {tags}")
         return tags
     except Exception as e:
@@ -97,12 +117,8 @@ def fetch_correspondents(api_url, headers):
     Fetches all correspondents from the API and returns a dictionary of correspondent names to their IDs.
     """
     try:
-        response = requests.get(f"{api_url}/api/correspondents/", headers=headers)
-        response.raise_for_status()
-        return {
-            correspondent["name"]: correspondent["id"]
-            for correspondent in response.json().get("results", [])
-        }
+        results = fetch_all_results(f"{api_url}/api/correspondents/", headers)
+        return {correspondent["name"]: correspondent["id"] for correspondent in results}
     except Exception as e:
         logging.error(f"Failed to fetch correspondents: {e}")
         return {}
@@ -128,12 +144,8 @@ def get_correspondents(api_url, headers):
     Fetches all correspondents from the API and returns a dictionary of correspondent names to their IDs.
     """
     try:
-        response = requests.get(f"{api_url}/api/correspondents/", headers=headers)
-        response.raise_for_status()
-        return {
-            correspondent["name"]: correspondent["id"]
-            for correspondent in response.json().get("results", [])
-        }
+        results = fetch_all_results(f"{api_url}/api/correspondents/", headers)
+        return {correspondent["name"]: correspondent["id"] for correspondent in results}
     except Exception as e:
         logging.error(f"Failed to fetch correspondents: {e}")
         return {}
@@ -177,14 +189,13 @@ def fetch_custom_fields(api_url, headers):
     """
     try:
         logging.info("Fetching custom fields metadata.")
-        response = requests.get(f"{api_url}/api/custom_fields/", headers=headers)
-        response.raise_for_status()
+        results = fetch_all_results(f"{api_url}/api/custom_fields/", headers)
         return {
             to_snake_case(item["name"]): {
                 "id": item["id"],
                 "data_type": item["data_type"],
             }
-            for item in response.json().get("results", [])
+            for item in results
         }
     except Exception as e:
         logging.error(f"Failed to fetch custom fields metadata: {e}")

@@ -167,6 +167,9 @@ def test_fetch_ocr_data_success(monkeypatch):
 def test_fetch_tags_failure():
     with patch("requests.get") as mock_get:
         mock_get.return_value.status_code = 500
+        mock_get.return_value.raise_for_status.side_effect = (
+            requests.exceptions.HTTPError("500 Server Error")
+        )
 
         tags = fetch_tags(API_URL, HEADERS)
         assert tags == {}

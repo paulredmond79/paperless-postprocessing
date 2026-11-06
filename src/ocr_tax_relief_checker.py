@@ -89,13 +89,25 @@ def record_failure(document_id, message):
         logging.error(f"Failed to add failure note to document {document_id}: {e}")
 
 
+def _retry_after_seconds(error, attempt, backoff_factor):
+    """Returns how long to wait before retrying after a rate-limit error."""
+    response = getattr(error, "response", None)
+    retry_after = getattr(response, "headers", {}).get("retry-after")
+    try:
+        return float(retry_after)
+    except (TypeError, ValueError):
+        return backoff_factor**attempt + random.uniform(0, 1)
+
+
 def analyze_document_with_openai(ocr_data, document_id):
     """
     Sends OCR data to OpenAI to determine if it qualifies for tax relief.
-    Implements retry logic with exponential backoff for rate limit errors.
-    Handles additional HTTP status codes like 428 and 429.
-    Validates the API response against the tax relief schema.
-    If validation fails, adds a "tax-check-failed" tag to the document and proceeds.
+
+    Retries rate-limit errors with exponential backoff and validates the
+    response against the tax relief schema. Returns the raw JSON string on
+    success. On any failure it records the failure on the document exactly
+    once (tag plus note) and returns None, so callers must not record it
+    again.
     """
     logging.info("Analyzing OCR data with OpenAI.")
     max_retries = 5
@@ -108,6 +120,7 @@ def analyze_document_with_openai(ocr_data, document_id):
             tax_relief_schema = json.load(schema_file)
     except Exception as e:
         logging.error(f"Failed to load tax relief schema: {e}")
+        record_failure(document_id, f"Failed to load tax relief schema: {e}")
         return None
 
     for attempt in range(max_retries):
@@ -119,45 +132,39 @@ def analyze_document_with_openai(ocr_data, document_id):
                     {"role": "user", "content": user_prompt + ocr_data},
                 ],
             )
-            result = response.choices[0].message.content
-
-            # Validate the response against the schema
-            try:
-                jsonschema.validate(
-                    instance=json.loads(result), schema=tax_relief_schema
-                )
-                return result
-            except jsonschema.ValidationError as ve:
-                logging.error(f"Validation error: {ve.message}")
-                logging.info("Adding 'tax-check-failed' tag to the document.")
-
-                # Use the fetch_or_create_tag function to ensure the tag exists
-                tag_id = fetch_or_create_tag(paperless_url, headers, "tax-check-failed")
-                add_tag_to_document(paperless_url, headers, document_id, tag_id)
-
-                record_failure(document_id, f"Validation error: {ve.message}")
-
-                return None
-
         except openai.RateLimitError as e:
-            retry_after = backoff_factor**attempt + random.uniform(0, 1)
-            if hasattr(e, "headers") and "Retry-After" in e.headers:
-                retry_after = int(e.headers["Retry-After"])
+            retry_after = _retry_after_seconds(e, attempt, backoff_factor)
             logging.warning(
-                f"Rate limit exceeded (429 Too Many Requests). Retrying in {retry_after} seconds..."
+                f"Rate limit exceeded (429 Too Many Requests). Retrying in {retry_after:.1f} seconds..."
             )
             time.sleep(retry_after)
+            continue
         except openai.OpenAIError as e:
-            if e.http_status == 428:
+            if getattr(e, "status_code", None) == 428:
                 logging.error(
                     "Precondition Required (428). Ensure the request meets the required conditions."
                 )
-                break
             logging.error(f"OpenAI API error: {e}")
-            record_failure(document_id, str(e))
-            break
+            record_failure(document_id, f"OpenAI API error: {e}")
+            return None
+
+        result = response.choices[0].message.content
+
+        # Validate the response against the schema
+        try:
+            jsonschema.validate(instance=json.loads(result), schema=tax_relief_schema)
+            return result
+        except json.JSONDecodeError as e:
+            logging.error(f"OpenAI response is not valid JSON: {e}")
+            record_failure(document_id, f"JSON decode error: {e}")
+            return None
+        except jsonschema.ValidationError as ve:
+            logging.error(f"Validation error: {ve.message}")
+            record_failure(document_id, f"Validation error: {ve.message}")
+            return None
+
     logging.error("Failed to analyze document with OpenAI after multiple attempts.")
-    record_failure(document_id, "OpenAI analysis failed")
+    record_failure(document_id, "OpenAI rate limit retries exhausted")
     return None
 
 
@@ -254,11 +261,15 @@ def update_document_with_json(api_url, headers, doc_id, json_data):
     }
 
     # Add all custom fields to the payload, excluding detected_services and analysis
-    custom_fields = [
-        {"field": field_mapping[key]["id"], "value": processed_json_data[key]}
-        for key in processed_json_data
-        if key in field_mapping and key not in ["detected_services", "analysis"]
-    ]
+    custom_fields = []
+    for key, value in processed_json_data.items():
+        if key not in field_mapping or key in ["detected_services", "analysis"]:
+            continue
+        field_id = field_mapping[key].get("id")
+        if field_id is None:
+            logging.warning(f"No custom field ID for '{key}'. Skipping it.")
+            continue
+        custom_fields.append({"field": field_id, "value": value})
 
     # Combine analysis and detected_services into a single notes field
     analysis = processed_json_data.get("analysis", "")
@@ -300,8 +311,8 @@ def main():
         # Analyze with OpenAI
         result = analyze_document_with_openai(ocr_data, document_id)
         if not result:
+            # analyze_document_with_openai has already recorded the failure
             logging.error("Failed to analyze document with OpenAI.")
-            record_failure(document_id, "OpenAI analysis failed")
             sys.exit(1)
 
         # Parse JSON response
@@ -312,11 +323,11 @@ def main():
             record_failure(document_id, f"JSON decode error: {e}")
             sys.exit(1)
 
+        # Create any missing custom fields first, so their IDs can be looked up
+        ensure_custom_fields(paperless_url, headers, field_mapping)
+
         # Populate field mapping with IDs
         populate_field_mapping_with_ids(paperless_url, headers, field_mapping)
-
-        # Ensure custom fields exist
-        ensure_custom_fields(paperless_url, headers, field_mapping)
 
         # Update document with JSON data
         update_document_with_json(paperless_url, headers, document_id, json_data)

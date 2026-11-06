@@ -99,9 +99,17 @@ def fetch_tags():
     Fetches existing tags as a dictionary keyed by name.
     """
     logging.info("Fetching existing tags from Paperless-ngx.")
-    response = requests.get(f"{paperless_url}/api/tags/", headers=headers)
-    response.raise_for_status()
-    tags = {tag["name"].lower(): tag for tag in response.json().get("results", [])}
+    tags = {}
+    next_url = f"{paperless_url}/api/tags/"
+
+    while next_url:
+        response = requests.get(next_url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        for tag in data.get("results", []):
+            tags[tag["name"].lower()] = tag
+        next_url = data.get("next")
+
     logging.debug(f"Fetched tags: {tags}")
     logging.info(f"Fetched {len(tags)} tags.")
     return tags
@@ -264,6 +272,25 @@ def fetch_document_details(doc_id):
     return document_details
 
 
+UNABLE_TO_DETERMINE_TAG = "gpt-correspondent-unable-to-determine"
+UNCLEAR_CORRESPONDENT_PHRASE = (
+    "the ocr text does not provide a clear correspondent name."
+)
+
+
+def tag_unable_to_determine(doc_id, current_tags):
+    """
+    Adds the 'gpt-correspondent-unable-to-determine' tag to a document.
+    """
+    logging.warning(
+        f"AI could not determine a correspondent. Adding '{UNABLE_TO_DETERMINE_TAG}' tag."
+    )
+    # fetch_or_create_tag returns the tag ID, not a tag dict
+    tag_id = fetch_or_create_tag(paperless_url, headers, UNABLE_TO_DETERMINE_TAG)
+    if tag_id not in current_tags:
+        add_tag_to_document(doc_id, tag_id)
+
+
 def main(doc_id):
     """
     Post-processes a single document by ID.
@@ -306,25 +333,17 @@ def main(doc_id):
             logging.debug(f"AI response content: {ai_response}")
             sys.exit(1)
     elif ai_response["status"] == "no_match":
-        logging.warning(
-            "AI could not determine a correspondent. Adding 'gpt-correspondent-unable-to-determine' tag."
-        )
-
-        # Fetch or create the 'gpt-correspondent-unable-to-determine' tag
-        unable_to_determine_tag_name = "gpt-correspondent-unable-to-determine"
-        unable_to_determine_tag = fetch_or_create_tag(
-            paperless_url, headers, unable_to_determine_tag_name
-        )
-
-        # Add the tag to the document
-        if unable_to_determine_tag["id"] not in current_tags:
-            add_tag_to_document(doc_id, unable_to_determine_tag["id"])
-
+        tag_unable_to_determine(doc_id, current_tags)
         return  # Exit without updating the correspondent
     else:
         logging.error(f"Unexpected status in AI response: {ai_response['status']}")
         logging.debug(f"AI response content: {ai_response}")
         sys.exit(1)
+
+    # Some models answer with a sentence instead of a "no_match" status
+    if correspondent_name.strip().lower() == UNCLEAR_CORRESPONDENT_PHRASE:
+        tag_unable_to_determine(doc_id, current_tags)
+        return  # Exit without updating the correspondent
 
     # Fetch the correspondent from the existing list or create a new one
     correspondent = correspondents.get(correspondent_name.lower())
@@ -372,27 +391,6 @@ def main(doc_id):
             correspondent["id"],
         )
         tag = None  # Ensure 'tag' is defined even if no updates are made
-
-    # Check if OpenAI was unable to determine a correspondent
-    if (
-        correspondent_name.lower()
-        == "the ocr text does not provide a clear correspondent name."
-    ):
-        logging.warning(
-            "OpenAI could not determine a correspondent. Adding 'gpt-correspondent-unable-to-determine' tag."
-        )
-
-        # Fetch or create the 'gpt-correspondent-unable-to-determine' tag
-        unable_to_determine_tag_name = "gpt-correspondent-unable-to-determine"
-        unable_to_determine_tag = fetch_or_create_tag(
-            paperless_url, headers, unable_to_determine_tag_name
-        )
-
-        # Add the tag to the document
-        if unable_to_determine_tag["id"] not in current_tags:
-            add_tag_to_document(doc_id, unable_to_determine_tag["id"])
-
-        return  # Exit without updating the correspondent
 
     if tag:
         logging.info(

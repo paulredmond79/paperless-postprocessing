@@ -6,6 +6,7 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))  # noqa: E402
 
+from utils import api_helpers  # noqa: E402
 from utils.api_helpers import (  # noqa: E402
     ensure_custom_field_exists,
     fetch_correspondents,
@@ -134,3 +135,56 @@ def test_ensure_custom_field_exists_create_success(monkeypatch):
     monkeypatch.setattr("requests.post", lambda *a, **k: MockPostResponse())
     result = ensure_custom_field_exists(API_URL, HEADERS, "Field")
     assert result == {"id": 7, "name": "Field", "data_type": "string"}
+
+
+def _paged_get(pages):
+    class Resp:
+        def __init__(self, url):
+            self.url = url
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return pages[self.url]
+
+    return lambda url, headers=None: Resp(url)
+
+
+def test_fetch_all_results_follows_next(monkeypatch):
+    pages = {
+        "http://api/api/tags/": {"results": [{"id": 1}], "next": "http://api/p2"},
+        "http://api/p2": {"results": [{"id": 2}], "next": None},
+    }
+    monkeypatch.setattr(api_helpers.requests, "get", _paged_get(pages))
+
+    assert api_helpers.fetch_all_results("http://api/api/tags/", {}) == [
+        {"id": 1},
+        {"id": 2},
+    ]
+
+
+def test_fetch_all_results_stops_on_repeated_next(monkeypatch):
+    pages = {"http://api/loop": {"results": [{"id": 1}], "next": "http://api/loop"}}
+    monkeypatch.setattr(api_helpers.requests, "get", _paged_get(pages))
+
+    assert api_helpers.fetch_all_results("http://api/loop", {}) == [{"id": 1}]
+
+
+def test_fetch_tags_reads_every_page(monkeypatch):
+    pages = {
+        "http://api/api/tags/": {
+            "results": [{"id": 1, "name": "Inbox"}],
+            "next": "http://api/api/tags/?page=2",
+        },
+        "http://api/api/tags/?page=2": {
+            "results": [{"id": 5, "name": "gpt-correspondent"}],
+            "next": None,
+        },
+    }
+    monkeypatch.setattr(api_helpers.requests, "get", _paged_get(pages))
+
+    assert api_helpers.fetch_tags("http://api", {}) == {
+        "Inbox": 1,
+        "gpt-correspondent": 5,
+    }

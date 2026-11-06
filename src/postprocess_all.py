@@ -43,6 +43,12 @@ def fetch_all_documents():
 
 
 def main():
+    """
+    Runs post-processing on every document without the 'gpt-correspondent' tag.
+
+    A failure on one document is logged and the batch moves on. Exits with
+    status 1 at the end if any document failed.
+    """
     logging.info(
         "Starting post-processing for all documents without the 'gpt-correspondent' tag."
     )
@@ -63,6 +69,7 @@ def main():
     gpt_tag_id = gpt_tag["id"]
 
     # Process each document
+    failed_ids = []
     for document in documents:
         document_id = document["id"]
 
@@ -85,7 +92,23 @@ def main():
 
         # Process the document
         logging.info(f"Processing document ID {document_id}.")
-        process_document(document_id)
+        try:
+            process_document(document_id)
+        except SystemExit as e:
+            # postprocess.main calls sys.exit on errors; exit code 0 is a skip
+            if e.code not in (None, 0):
+                logging.error(f"Document ID {document_id} failed (exit {e.code}).")
+                failed_ids.append(document_id)
+        except Exception as e:
+            logging.error(f"Document ID {document_id} failed: {e}")
+            failed_ids.append(document_id)
+
+    if failed_ids:
+        logging.error(
+            f"Post-processing finished with {len(failed_ids)} failed "
+            f"document(s): {failed_ids}"
+        )
+        sys.exit(1)
 
     logging.info("Post-processing completed for all documents.")
 
